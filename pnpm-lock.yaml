@@ -20,6 +20,12 @@ importers:
 
   apps/admin:
     dependencies:
+      '@repo/api':
+        specifier: workspace:^
+        version: link:../../packages/api
+      '@repo/db':
+        specifier: workspace:^
+        version: link:../../packages/db
       '@repo/ui':
         specifier: workspace:^
         version: link:../../packages/ui
@@ -60,6 +66,12 @@ importers:
 
   apps/client:
     dependencies:
+      '@repo/api':
+        specifier: workspace:^
+        version: link:../../packages/api
+      '@repo/db':
+        specifier: workspace:^
+        version: link:../../packages/db
       '@repo/ui':
         specifier: workspace:^
         version: link:../../packages/ui
@@ -100,6 +112,12 @@ importers:
 
   apps/editor:
     dependencies:
+      '@repo/api':
+        specifier: workspace:^
+        version: link:../../packages/api
+      '@repo/db':
+        specifier: workspace:^
+        version: link:../../packages/db
       '@repo/ui':
         specifier: workspace:^
         version: link:../../packages/ui
@@ -138,7 +156,11 @@ importers:
         specifier: ^5
         version: 5.9.2
 
-  packages/api: {}
+  packages/api:
+    dependencies:
+      '@repo/db':
+        specifier: workspace:^
+        version: link:../db
 
   packages/db: {}
 

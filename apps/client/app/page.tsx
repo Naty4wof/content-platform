@@ -9,8 +9,11 @@ import {
   CardTitle,
   Code,
 } from "@repo/ui";
+import { listPublishedArticles } from "@repo/api";
 
 export default function Home() {
+  const publishedArticles = listPublishedArticles();
+
   return (
     <main className="min-h-screen bg-[linear-gradient(180deg,_#f8fafc_0%,_#eff6ff_100%)] px-6 py-10 text-slate-950">
       <div className="mx-auto grid w-full max-w-6xl gap-6 lg:grid-cols-[1.2fr_0.8fr]">
@@ -34,20 +37,31 @@ export default function Home() {
 
         <Card>
           <CardHeader>
-            <CardTitle>Developer notes</CardTitle>
+            <CardTitle>Published now</CardTitle>
             <CardDescription>
-              What the client app imports from the shared package.
+              Articles visible to end users from shared packages.
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
+            {publishedArticles.length === 0 ? (
+              <p className="text-sm leading-6 text-slate-600">
+                No published articles yet.
+              </p>
+            ) : (
+              <ul className="space-y-2 text-sm text-slate-700">
+                {publishedArticles.map((article) => (
+                  <li key={article.id} className="rounded-lg border border-slate-200 p-3">
+                    <p className="font-medium text-slate-900">{article.title}</p>
+                    <p className="text-slate-600">{article.summary}</p>
+                    <p className="mt-1 text-xs text-slate-500">/{article.slug}</p>
+                  </li>
+                ))}
+              </ul>
+            )}
             <p className="text-sm leading-6 text-slate-600">
-              Import components from <Code>@repo/ui</Code> and keep
-              page-specific logic in the app folder.
+              Shared imports: <Code>@repo/api</Code>, <Code>@repo/db</Code>, and{" "}
+              <Code>@repo/ui</Code>
             </p>
-            <div className="rounded-xl bg-slate-950 p-4 text-sm text-slate-100">
-              <code>Button</code>, <code>Card</code>, <code>Badge</code>, and{" "}
-              <code>Code</code>
-            </div>
           </CardContent>
           <CardFooter>
             <Badge variant="success">Ready to extend</Badge>

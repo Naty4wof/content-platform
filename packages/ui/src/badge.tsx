@@ -5,10 +5,12 @@ import { cn } from "./cn";
 type BadgeVariant = "default" | "subtle" | "success" | "warning";
 
 const variantClasses: Record<BadgeVariant, string> = {
-  default: "bg-slate-950 text-white",
-  subtle: "bg-slate-100 text-slate-700",
-  success: "bg-emerald-100 text-emerald-700",
-  warning: "bg-amber-100 text-amber-800",
+  default:
+    "border-slate-900 bg-slate-950 text-white shadow-sm",
+  subtle:
+    "border-slate-200 bg-slate-100 text-slate-700",
+  success: "border-emerald-200 bg-emerald-50 text-emerald-700",
+  warning: "border-amber-200 bg-amber-50 text-amber-700",
 };
 
 export function Badge({
@@ -19,7 +21,7 @@ export function Badge({
   return (
     <span
       className={cn(
-        "inline-flex items-center rounded-full px-2.5 py-1 text-xs font-medium",
+        "inline-flex items-center rounded-full px-3 py-1 text-xs font-medium tracking-[0.01em]",
         variantClasses[variant],
         className,
       )}

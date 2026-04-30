@@ -1,3 +1,7 @@
+"use client";
+
+import { useMemo, useState } from "react";
+
 import {
   Badge,
   Button,
@@ -9,50 +13,139 @@ import {
   CardTitle,
   Code,
 } from "@repo/ui";
+import { listArticles } from "@repo/api";
+import { transitionArticle, type Article } from "@repo/db";
 
 export default function Home() {
+  const [articles, setArticles] = useState<Article[]>(() => listArticles());
+
+  const metrics = useMemo(
+    () => ({
+      queueCount: articles.filter((article) => article.status === "pending").length,
+      draftCount: articles.filter((article) => article.status === "draft").length,
+      publishedCount: articles.filter((article) => article.status === "published")
+        .length,
+    }),
+    [articles],
+  );
+
+  const queue = useMemo(
+    () => articles.filter((article) => article.status === "pending"),
+    [articles],
+  );
+
+  const approveArticle = (articleId: string) => {
+    setArticles((current) =>
+      current.map((article) =>
+        article.id === articleId ? transitionArticle(article, "published") : article,
+      ),
+    );
+  };
+
+  const rejectArticle = (articleId: string) => {
+    setArticles((current) =>
+      current.map((article) =>
+        article.id === articleId ? transitionArticle(article, "draft") : article,
+      ),
+    );
+  };
+
   return (
     <main className="min-h-screen bg-[radial-gradient(circle_at_center,_#fff7ed,_#f8fafc_60%)] px-6 py-10 text-slate-950">
       <div className="mx-auto flex w-full max-w-6xl flex-col gap-6">
         <section className="rounded-[2rem] border border-amber-200 bg-white p-8 shadow-[0_20px_80px_rgba(15,23,42,0.06)]">
           <div className="flex flex-wrap items-center gap-3">
             <Badge variant="warning">Editor</Badge>
-            <Badge variant="subtle">Content tools</Badge>
+            <Badge variant="subtle">Review pending content</Badge>
           </div>
 
           <div className="mt-5 max-w-2xl space-y-4">
             <h1 className="text-4xl font-semibold tracking-tight sm:text-5xl">
-              A focused workspace for writing and shaping content.
+              The review desk for pending articles.
             </h1>
             <p className="text-lg leading-8 text-slate-600">
-              The editor app can now use the same shared UI system while keeping
-              its own workflow-specific surface.
+              Pending content flows here from admin, and each item can be
+              approved into publishing or rejected back to draft for revision.
             </p>
           </div>
 
           <div className="mt-8 flex flex-wrap gap-3">
-            <Button>Start editing</Button>
-            <Button variant="secondary">Open preview</Button>
+            <Button>Open review queue</Button>
+            <Button variant="secondary">Refresh status</Button>
           </div>
         </section>
 
         <Card>
           <CardHeader>
-            <CardTitle>Shared patterns</CardTitle>
+            <CardTitle>Editorial queue snapshot</CardTitle>
             <CardDescription>
-              Keep component styling consistent across the monorepo.
+              Shared data from the same article model used by admin and client.
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
-            <p className="text-sm leading-6 text-slate-600">
-              Build on <Code>Button</Code>, <Code>Card</Code>,{" "}
-              <Code>Badge</Code>, and
-              <Code>Code</Code> before introducing editor-specific pieces.
-            </p>
-            <div className="rounded-xl border border-dashed border-slate-300 p-4 text-sm text-slate-600">
-              This gives you a single design language now and a safer way to
-              expand later.
+            <div className="grid gap-3 sm:grid-cols-3">
+              <div className="rounded-xl border border-slate-200 p-3">
+                <p className="text-xs text-slate-500">Pending</p>
+                <p className="text-2xl font-semibold">{metrics.queueCount}</p>
+              </div>
+              <div className="rounded-xl border border-slate-200 p-3">
+                <p className="text-xs text-slate-500">Drafts</p>
+                <p className="text-2xl font-semibold">{metrics.draftCount}</p>
+              </div>
+              <div className="rounded-xl border border-slate-200 p-3">
+                <p className="text-xs text-slate-500">Published</p>
+                <p className="text-2xl font-semibold">{metrics.publishedCount}</p>
+              </div>
             </div>
+
+            <div className="space-y-3">
+              <p className="text-sm font-medium text-slate-900">Pending articles</p>
+              <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+                {queue.map((article) => (
+                  <div
+                    key={article.id}
+                    className="rounded-2xl border border-slate-200 bg-slate-50/80 p-4 transition hover:border-slate-300 hover:bg-white"
+                  >
+                    <div className="flex items-start justify-between gap-3">
+                      <div>
+                        <p className="text-sm font-semibold text-slate-950">
+                          {article.title}
+                        </p>
+                        <p className="mt-1 text-xs text-slate-500">/{article.slug}</p>
+                      </div>
+                      <Badge variant="warning">Pending</Badge>
+                    </div>
+
+                    <p className="mt-3 text-sm leading-6 text-slate-600">
+                      {article.summary}
+                    </p>
+
+                    <div className="mt-4 flex flex-wrap gap-2">
+                      <Button size="sm" onClick={() => approveArticle(article.id)}>
+                        Approve
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="secondary"
+                        onClick={() => rejectArticle(article.id)}
+                      >
+                        Reject
+                      </Button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              {queue.length === 0 ? (
+                <p className="text-sm text-slate-500">
+                  No pending articles right now.
+                </p>
+              ) : null}
+            </div>
+
+            <p className="text-sm leading-6 text-slate-600">
+              Shared imports: <Code>@repo/api</Code> and <Code>@repo/db</Code>
+            </p>
           </CardContent>
           <CardFooter>
             <Badge variant="success">Reusable</Badge>
