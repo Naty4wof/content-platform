@@ -16,6 +16,7 @@ import {
   listArticles,
   createArticle as apiCreateArticle,
   submitForReview as apiSubmitForReview,
+  subscribeToArticleEvents,
 } from "@repo/api";
 import { type Article, type ArticleStatus } from "@repo/db";
 
@@ -102,8 +103,14 @@ export default function Home() {
       if (!mounted) return;
       setArticles(all);
     })();
+    const stop = subscribeToArticleEvents(async () => {
+      const all = (await listArticles()) as Article[];
+      if (!mounted) return;
+      setArticles(all);
+    });
     return () => {
       mounted = false;
+      stop();
     };
   }, []);
 

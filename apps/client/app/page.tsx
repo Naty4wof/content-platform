@@ -13,6 +13,7 @@ import {
   Code,
 } from "@repo/ui";
 import { listPublishedArticles } from "@repo/api";
+import { subscribeToArticleEvents } from "@repo/api";
 import { type Article } from "@repo/db";
 
 export default function Home() {
@@ -29,8 +30,18 @@ export default function Home() {
         // ignore for now
       }
     })();
+    const stop = subscribeToArticleEvents(async () => {
+      try {
+        const all = (await listPublishedArticles()) as Article[];
+        if (!mounted) return;
+        setPublishedArticles(all);
+      } catch (err) {
+        // ignore for now
+      }
+    });
     return () => {
       mounted = false;
+      stop();
     };
   }, []);
 

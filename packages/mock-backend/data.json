@@ -38,13 +38,13 @@
     "summary": "A checklist to standardize editorial reviews.",
     "body": "Editor checklist body",
     "authorId": "admin_02",
-    "status": "pending",
+    "status": "draft",
     "tags": [
       "editorial",
       "quality"
     ],
     "createdAt": "2026-05-03T22:15:19.967Z",
-    "updatedAt": "2026-05-03T22:15:19.968Z",
+    "updatedAt": "2026-05-03T22:49:53.263Z",
     "publishedAt": null
   },
   {

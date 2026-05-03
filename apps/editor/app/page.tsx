@@ -17,6 +17,7 @@ import {
   listArticles,
   approveArticle as apiApproveArticle,
   rejectArticle as apiRejectArticle,
+  subscribeToArticleEvents,
 } from "@repo/api";
 import { type Article } from "@repo/db";
 
@@ -60,8 +61,14 @@ export default function Home() {
       if (!mounted) return;
       setArticles(all);
     })();
+    const stop = subscribeToArticleEvents(async () => {
+      const all = (await listArticles()) as Article[];
+      if (!mounted) return;
+      setArticles(all);
+    });
     return () => {
       mounted = false;
+      stop();
     };
   }, []);
 

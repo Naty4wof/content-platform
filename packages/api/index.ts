@@ -29,6 +29,11 @@ export interface EditorMetrics {
   publishedCount: number;
 }
 
+export interface ArticleEventPayload {
+  type: "created" | "submitted" | "approved" | "rejected";
+  article: Article;
+}
+
 export async function listArticles(): Promise<Article[]> {
   return fetchJson(`/articles`);
 }
@@ -89,6 +94,30 @@ export async function getArticleById(
   } catch (e) {
     return undefined;
   }
+}
+
+export function subscribeToArticleEvents(
+  onChange: (event: ArticleEventPayload) => void,
+): () => void {
+  if (typeof window === "undefined" || typeof EventSource === "undefined") {
+    return () => undefined;
+  }
+
+  const source = new EventSource(`${BASE}/events`);
+
+  const handleArticles = (event: MessageEvent<string>) => {
+    try {
+      onChange(JSON.parse(event.data) as ArticleEventPayload);
+    } catch (error) {
+      // ignore malformed events
+    }
+  };
+
+  source.addEventListener("articles", handleArticles as EventListener);
+  return () => {
+    source.removeEventListener("articles", handleArticles as EventListener);
+    source.close();
+  };
 }
 
 function buildArticleSeed(): Article[] {

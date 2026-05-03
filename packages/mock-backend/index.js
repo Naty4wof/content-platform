@@ -113,6 +113,22 @@ function saveData(data) {
 }
 
 let STORE = loadData();
+const CLIENTS = new Set();
+
+function sendEvent(res, event, payload) {
+  res.write(`event: ${event}\n`);
+  res.write(`data: ${JSON.stringify(payload)}\n\n`);
+}
+
+function broadcast(event, payload) {
+  for (const res of CLIENTS) {
+    try {
+      sendEvent(res, event, payload);
+    } catch (err) {
+      CLIENTS.delete(res);
+    }
+  }
+}
 
 const server = http.createServer(async (req, res) => {
   const url = new URL(req.url, `http://localhost`);
@@ -132,6 +148,23 @@ const server = http.createServer(async (req, res) => {
     if (req.method === "GET" && url.pathname === "/articles") {
       res.setHeader("Content-Type", "application/json");
       res.end(JSON.stringify(STORE));
+      return;
+    }
+
+    if (req.method === "GET" && url.pathname === "/events") {
+      res.writeHead(200, {
+        "Content-Type": "text/event-stream",
+        "Cache-Control": "no-cache, no-transform",
+        Connection: "keep-alive",
+        "Access-Control-Allow-Origin": "*",
+      });
+      res.write("retry: 3000\n\n");
+      CLIENTS.add(res);
+      sendEvent(res, "ready", { ok: true });
+
+      req.on("close", () => {
+        CLIENTS.delete(res);
+      });
       return;
     }
 
@@ -155,6 +188,7 @@ const server = http.createServer(async (req, res) => {
       const article = createDraftArticle(payload);
       STORE = [article, ...STORE];
       saveData(STORE);
+      broadcast("articles", { type: "created", article });
       res.setHeader("Content-Type", "application/json");
       res.end(JSON.stringify(article));
       return;
@@ -175,6 +209,7 @@ const server = http.createServer(async (req, res) => {
       const updated = transitionArticle(STORE[idx], "pending");
       STORE[idx] = updated;
       saveData(STORE);
+      broadcast("articles", { type: "submitted", article: updated });
       res.setHeader("Content-Type", "application/json");
       res.end(JSON.stringify(updated));
       return;
@@ -191,6 +226,7 @@ const server = http.createServer(async (req, res) => {
       const updated = transitionArticle(STORE[idx], "published");
       STORE[idx] = updated;
       saveData(STORE);
+      broadcast("articles", { type: "approved", article: updated });
       res.setHeader("Content-Type", "application/json");
       res.end(JSON.stringify(updated));
       return;
@@ -207,6 +243,7 @@ const server = http.createServer(async (req, res) => {
       const updated = transitionArticle(STORE[idx], "draft");
       STORE[idx] = updated;
       saveData(STORE);
+      broadcast("articles", { type: "rejected", article: updated });
       res.setHeader("Content-Type", "application/json");
       res.end(JSON.stringify(updated));
       return;
