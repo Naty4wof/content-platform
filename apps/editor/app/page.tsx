@@ -12,6 +12,7 @@ import {
   CardHeader,
   CardTitle,
   Code,
+  EmptyState,
 } from "@repo/ui";
 import {
   listArticles,
@@ -28,6 +29,7 @@ import { type Article } from "@repo/db";
 export default function Home() {
   const [articles, setArticles] = useState<Article[]>([]);
   const [role, setRole] = useState<UserRole>("editor");
+  const [selectedArticleId, setSelectedArticleId] = useState<string | null>(null);
 
   const metrics = useMemo(
     () => ({
@@ -46,6 +48,10 @@ export default function Home() {
     () => articles.filter((article) => article.status === "pending"),
     [articles],
   );
+  const selectedArticle = useMemo(
+    () => queue.find((article) => article.id === selectedArticleId) ?? null,
+    [queue, selectedArticleId],
+  );
   const canReview = role === "editor";
 
   const approveArticle = async (articleId: string) => {
@@ -56,6 +62,14 @@ export default function Home() {
 
   const rejectArticle = async (articleId: string) => {
     await apiRejectArticle(articleId);
+    const latest = (await listArticles()) as Article[];
+    setArticles(latest);
+  };
+
+  const approveAllPending = async () => {
+    for (const article of queue) {
+      await apiApproveArticle(article.id);
+    }
     const latest = (await listArticles()) as Article[];
     setArticles(latest);
   };
@@ -82,6 +96,17 @@ export default function Home() {
   useEffect(() => {
     setStoredRole(role);
   }, [role]);
+
+  useEffect(() => {
+    if (queue.length === 0) {
+      setSelectedArticleId(null);
+      return;
+    }
+
+    if (!selectedArticleId || !queue.some((a) => a.id === selectedArticleId)) {
+      setSelectedArticleId(queue[0].id);
+    }
+  }, [queue, selectedArticleId]);
 
   return (
     <main className="min-h-screen bg-[radial-gradient(circle_at_center,#fff7ed,#f8fafc_60%)] px-6 py-10 text-slate-950">
@@ -136,6 +161,13 @@ export default function Home() {
             <Button variant="secondary" disabled={!canReview}>
               Refresh status
             </Button>
+            <Button
+              variant="ghost"
+              disabled={!canReview || queue.length === 0}
+              onClick={approveAllPending}
+            >
+              Approve All Pending
+            </Button>
           </div>
         </section>
 
@@ -172,7 +204,8 @@ export default function Home() {
                 {queue.map((article) => (
                   <div
                     key={article.id}
-                    className="rounded-2xl border border-slate-200 bg-slate-50/80 p-4 transition hover:border-slate-300 hover:bg-white"
+                    className={`rounded-2xl border p-4 transition hover:border-slate-300 hover:bg-white ${selectedArticleId === article.id ? "border-slate-400 bg-white" : "border-slate-200 bg-slate-50/80"}`}
+                    onClick={() => setSelectedArticleId(article.id)}
                   >
                     <div className="flex items-start justify-between gap-3">
                       <div>
@@ -212,9 +245,10 @@ export default function Home() {
               </div>
 
               {queue.length === 0 ? (
-                <p className="text-sm text-slate-500">
-                  No pending articles right now.
-                </p>
+                <EmptyState
+                  title="Queue is clear"
+                  description="No pending articles right now. New submissions will appear here automatically."
+                />
               ) : null}
             </div>
 
@@ -225,6 +259,53 @@ export default function Home() {
           <CardFooter>
             <Badge variant="success">Reusable</Badge>
           </CardFooter>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle>Review detail</CardTitle>
+            <CardDescription>
+              Inspect the selected pending article before approving or rejecting it.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            {!selectedArticle ? (
+              <EmptyState
+                title="No pending article selected"
+                description="Select any pending article from the queue to see detailed context."
+              />
+            ) : (
+              <>
+                <div className="flex flex-wrap items-center justify-between gap-3">
+                  <div>
+                    <p className="text-sm font-semibold text-slate-950">
+                      {selectedArticle.title}
+                    </p>
+                    <p className="mt-1 text-xs text-slate-500">/{selectedArticle.slug}</p>
+                  </div>
+                  <Badge variant="warning">Pending review</Badge>
+                </div>
+
+                <p className="text-sm leading-6 text-slate-600">{selectedArticle.body}</p>
+
+                <div className="grid gap-2 text-xs text-slate-500 sm:grid-cols-2">
+                  <p>Author: {selectedArticle.authorId}</p>
+                  <p>Updated: {new Date(selectedArticle.updatedAt).toLocaleString()}</p>
+                </div>
+
+                <div className="flex flex-wrap gap-2">
+                  {selectedArticle.tags.map((tag) => (
+                    <span
+                      key={tag}
+                      className="rounded-full bg-white px-2.5 py-1 text-xs text-slate-600 shadow-sm ring-1 ring-slate-200"
+                    >
+                      {tag}
+                    </span>
+                  ))}
+                </div>
+              </>
+            )}
+          </CardContent>
         </Card>
       </div>
     </main>

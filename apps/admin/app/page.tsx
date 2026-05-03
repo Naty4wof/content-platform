@@ -11,6 +11,7 @@ import {
   CardFooter,
   CardHeader,
   CardTitle,
+  EmptyState,
 } from "@repo/ui";
 import {
   listArticles,
@@ -44,6 +45,9 @@ export default function Home() {
   const [body, setBody] = useState("");
   const [tags, setTags] = useState("strategy, platform");
   const [searchTerm, setSearchTerm] = useState("");
+  const [selectedArticleId, setSelectedArticleId] = useState<string | null>(
+    null,
+  );
 
   const metrics = useMemo(
     () => ({
@@ -68,6 +72,12 @@ export default function Home() {
 
   const trendingTags = useMemo(() => getTrendingTags(articles, 4), [articles]);
   const canManage = role === "admin";
+  const selectedArticle = useMemo(
+    () =>
+      visibleArticles.find((article) => article.id === selectedArticleId) ??
+      null,
+    [visibleArticles, selectedArticleId],
+  );
 
   const resetForm = () => {
     setTitle("");
@@ -106,6 +116,17 @@ export default function Home() {
     setArticles(latest);
   };
 
+  const submitVisibleDrafts = async () => {
+    const drafts = visibleArticles.filter(
+      (article) => article.status === "draft",
+    );
+    for (const article of drafts) {
+      await apiSubmitForReview(article.id);
+    }
+    const latest = (await listArticles()) as Article[];
+    setArticles(latest);
+  };
+
   useEffect(() => {
     let mounted = true;
     (async function load() {
@@ -128,6 +149,20 @@ export default function Home() {
   useEffect(() => {
     setStoredRole(role);
   }, [role]);
+
+  useEffect(() => {
+    if (visibleArticles.length === 0) {
+      setSelectedArticleId(null);
+      return;
+    }
+
+    if (
+      !selectedArticleId ||
+      !visibleArticles.some((a) => a.id === selectedArticleId)
+    ) {
+      setSelectedArticleId(visibleArticles[0].id);
+    }
+  }, [visibleArticles, selectedArticleId]);
 
   return (
     <main className="min-h-screen bg-[radial-gradient(circle_at_top,#f8fafc,#e2e8f0_70%)] px-6 py-10 text-slate-950">
@@ -216,6 +251,13 @@ export default function Home() {
               onClick={() => createArticle("pending")}
             >
               Submit for Review
+            </Button>
+            <Button
+              variant="ghost"
+              disabled={!canManage}
+              onClick={submitVisibleDrafts}
+            >
+              Submit Visible Drafts
             </Button>
           </div>
         </section>
@@ -363,7 +405,8 @@ export default function Home() {
               {visibleArticles.map((article) => (
                 <div
                   key={article.id}
-                  className="rounded-2xl border border-slate-200 bg-slate-50/80 p-4 transition hover:border-slate-300 hover:bg-white"
+                  className={`rounded-2xl border p-4 transition hover:border-slate-300 hover:bg-white ${selectedArticleId === article.id ? "border-slate-400 bg-white" : "border-slate-200 bg-slate-50/80"}`}
+                  onClick={() => setSelectedArticleId(article.id)}
                 >
                   <div className="flex items-start justify-between gap-3">
                     <div>
@@ -419,10 +462,81 @@ export default function Home() {
             </div>
 
             {visibleArticles.length === 0 ? (
-              <p className="text-sm text-slate-500">
-                No articles match the selected filter.
-              </p>
+              <EmptyState
+                title="No matching articles"
+                description="Try a different status filter, clear your search, or create a new draft."
+              />
             ) : null}
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle>Selected article details</CardTitle>
+            <CardDescription>
+              Preview metadata, tags, and workflow status before taking actions.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            {!selectedArticle ? (
+              <EmptyState
+                title="No article selected"
+                description="Pick an article from the pipeline to inspect details."
+              />
+            ) : (
+              <>
+                <div className="flex flex-wrap items-center justify-between gap-3">
+                  <div>
+                    <p className="text-sm font-semibold text-slate-950">
+                      {selectedArticle.title}
+                    </p>
+                    <p className="mt-1 text-xs text-slate-500">
+                      /{selectedArticle.slug}
+                    </p>
+                  </div>
+                  <Badge
+                    variant={
+                      selectedArticle.status === "published"
+                        ? "success"
+                        : selectedArticle.status === "pending"
+                          ? "warning"
+                          : "subtle"
+                    }
+                  >
+                    {selectedArticle.status}
+                  </Badge>
+                </div>
+
+                <p className="text-sm leading-6 text-slate-600">
+                  {selectedArticle.body}
+                </p>
+
+                <div className="grid gap-2 text-xs text-slate-500 sm:grid-cols-3">
+                  <p>Author: {selectedArticle.authorId}</p>
+                  <p>
+                    Updated:{" "}
+                    {new Date(selectedArticle.updatedAt).toLocaleString()}
+                  </p>
+                  <p>
+                    Published:{" "}
+                    {selectedArticle.publishedAt
+                      ? new Date(selectedArticle.publishedAt).toLocaleString()
+                      : "Not published"}
+                  </p>
+                </div>
+
+                <div className="flex flex-wrap gap-2">
+                  {selectedArticle.tags.map((tag) => (
+                    <span
+                      key={tag}
+                      className="rounded-full bg-white px-2.5 py-1 text-xs text-slate-600 shadow-sm ring-1 ring-slate-200"
+                    >
+                      {tag}
+                    </span>
+                  ))}
+                </div>
+              </>
+            )}
           </CardContent>
         </Card>
       </div>
