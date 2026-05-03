@@ -14,15 +14,20 @@ import {
 } from "@repo/ui";
 import {
   getTrendingTags,
+  getStoredRole,
   listPublishedArticles,
   searchArticles,
+  ROLE_LABELS,
+  setStoredRole,
   subscribeToArticleEvents,
+  type UserRole,
 } from "@repo/api";
 import { type Article } from "@repo/db";
 
 export default function Home() {
   const [publishedArticles, setPublishedArticles] = useState<Article[]>([]);
   const [searchTerm, setSearchTerm] = useState("");
+  const [role, setRole] = useState<UserRole>("client");
 
   const trendingTags = useMemo(
     () => getTrendingTags(publishedArticles, 4),
@@ -41,6 +46,7 @@ export default function Home() {
         const all = (await listPublishedArticles()) as Article[];
         if (!mounted) return;
         setPublishedArticles(all);
+        setRole(getStoredRole("client"));
       } catch (err) {
         // ignore for now
       }
@@ -60,11 +66,32 @@ export default function Home() {
     };
   }, []);
 
+  useEffect(() => {
+    setStoredRole(role);
+  }, [role]);
+
   return (
     <main className="min-h-screen bg-[linear-gradient(180deg,#f8fafc_0%,#eff6ff_100%)] px-6 py-10 text-slate-950">
       <div className="mx-auto grid w-full max-w-6xl gap-6 lg:grid-cols-[1.2fr_0.8fr]">
         <section className="rounded-4xl border border-slate-200 bg-white p-8 shadow-[0_20px_80px_rgba(15,23,42,0.06)]">
           <Badge variant="subtle">Client portal</Badge>
+
+          <div className="mt-4 flex flex-wrap items-center gap-3">
+            <span className="text-sm text-slate-600">Viewing as</span>
+            <Badge variant="success">{ROLE_LABELS[role]}</Badge>
+            <select
+              className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm outline-none transition focus:border-slate-400"
+              value={role}
+              onChange={(event) => setRole(event.target.value as UserRole)}
+            >
+              {Object.entries(ROLE_LABELS).map(([value, label]) => (
+                <option key={value} value={value}>
+                  {label}
+                </option>
+              ))}
+            </select>
+          </div>
+
           <div className="mt-5 max-w-2xl space-y-4">
             <h1 className="text-4xl font-semibold tracking-tight sm:text-5xl">
               Reusable UI for the customer-facing app.

@@ -41,6 +41,37 @@ export interface ArticleSearchOptions {
   limit?: number;
 }
 
+export type UserRole = "admin" | "editor" | "client";
+
+export const ROLE_STORAGE_KEY = "content-platform-role";
+
+export const ROLE_LABELS: Record<UserRole, string> = {
+  admin: "Admin",
+  editor: "Editor",
+  client: "Client",
+};
+
+export function isUserRole(value: string | null): value is UserRole {
+  return value === "admin" || value === "editor" || value === "client";
+}
+
+export function getStoredRole(defaultRole: UserRole): UserRole {
+  if (typeof window === "undefined") {
+    return defaultRole;
+  }
+
+  const storedRole = window.localStorage.getItem(ROLE_STORAGE_KEY);
+  return isUserRole(storedRole) ? storedRole : defaultRole;
+}
+
+export function setStoredRole(role: UserRole): void {
+  if (typeof window === "undefined") {
+    return;
+  }
+
+  window.localStorage.setItem(ROLE_STORAGE_KEY, role);
+}
+
 export function searchArticles(
   articles: Article[],
   options: ArticleSearchOptions = {},

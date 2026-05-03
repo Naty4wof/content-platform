@@ -17,12 +17,17 @@ import {
   listArticles,
   approveArticle as apiApproveArticle,
   rejectArticle as apiRejectArticle,
+  getStoredRole,
+  setStoredRole,
+  ROLE_LABELS,
   subscribeToArticleEvents,
+  type UserRole,
 } from "@repo/api";
 import { type Article } from "@repo/db";
 
 export default function Home() {
   const [articles, setArticles] = useState<Article[]>([]);
+  const [role, setRole] = useState<UserRole>("editor");
 
   const metrics = useMemo(
     () => ({
@@ -41,6 +46,7 @@ export default function Home() {
     () => articles.filter((article) => article.status === "pending"),
     [articles],
   );
+  const canReview = role === "editor";
 
   const approveArticle = async (articleId: string) => {
     await apiApproveArticle(articleId);
@@ -60,6 +66,7 @@ export default function Home() {
       const all = (await listArticles()) as Article[];
       if (!mounted) return;
       setArticles(all);
+      setRole(getStoredRole("editor"));
     })();
     const stop = subscribeToArticleEvents(async () => {
       const all = (await listArticles()) as Article[];
@@ -72,6 +79,10 @@ export default function Home() {
     };
   }, []);
 
+  useEffect(() => {
+    setStoredRole(role);
+  }, [role]);
+
   return (
     <main className="min-h-screen bg-[radial-gradient(circle_at_center,#fff7ed,#f8fafc_60%)] px-6 py-10 text-slate-950">
       <div className="mx-auto flex w-full max-w-6xl flex-col gap-6">
@@ -80,6 +91,35 @@ export default function Home() {
             <Badge variant="warning">Editor</Badge>
             <Badge variant="subtle">Review pending content</Badge>
           </div>
+
+          <div className="mt-4 grid gap-4 rounded-3xl border border-slate-200 bg-slate-50/80 p-4 md:grid-cols-[1fr_auto] md:items-end">
+            <label className="space-y-2 text-sm font-medium text-slate-700">
+              <span>Signed in as</span>
+              <select
+                className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm outline-none transition focus:border-slate-400"
+                value={role}
+                onChange={(event) => setRole(event.target.value as UserRole)}
+              >
+                {Object.entries(ROLE_LABELS).map(([value, label]) => (
+                  <option key={value} value={value}>
+                    {label}
+                  </option>
+                ))}
+              </select>
+            </label>
+
+            <div className="flex items-center justify-end">
+              <Badge variant={canReview ? "success" : "warning"}>
+                {canReview ? "Review access" : "Read-only preview"}
+              </Badge>
+            </div>
+          </div>
+
+          {!canReview ? (
+            <div className="mt-4 rounded-3xl border border-amber-200 bg-amber-50/80 p-4 text-sm leading-6 text-amber-900">
+              Switch to the Editor role to approve or reject pending content.
+            </div>
+          ) : null}
 
           <div className="mt-5 max-w-2xl space-y-4">
             <h1 className="text-4xl font-semibold tracking-tight sm:text-5xl">
@@ -92,8 +132,10 @@ export default function Home() {
           </div>
 
           <div className="mt-8 flex flex-wrap gap-3">
-            <Button>Open review queue</Button>
-            <Button variant="secondary">Refresh status</Button>
+            <Button disabled={!canReview}>Open review queue</Button>
+            <Button variant="secondary" disabled={!canReview}>
+              Refresh status
+            </Button>
           </div>
         </section>
 
@@ -151,6 +193,7 @@ export default function Home() {
                     <div className="mt-4 flex flex-wrap gap-2">
                       <Button
                         size="sm"
+                        disabled={!canReview}
                         onClick={() => approveArticle(article.id)}
                       >
                         Approve
@@ -158,6 +201,7 @@ export default function Home() {
                       <Button
                         size="sm"
                         variant="secondary"
+                        disabled={!canReview}
                         onClick={() => rejectArticle(article.id)}
                       >
                         Reject

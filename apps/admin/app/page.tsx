@@ -18,7 +18,11 @@ import {
   submitForReview as apiSubmitForReview,
   searchArticles,
   getTrendingTags,
+  getStoredRole,
+  setStoredRole,
+  ROLE_LABELS,
   subscribeToArticleEvents,
+  type UserRole,
 } from "@repo/api";
 import { type Article, type ArticleStatus } from "@repo/db";
 
@@ -31,6 +35,7 @@ const filters: Array<{ label: string; value: ArticleStatus | "all" }> = [
 
 export default function Home() {
   const [articles, setArticles] = useState<Article[]>([]);
+  const [role, setRole] = useState<UserRole>("admin");
   const [selectedStatus, setSelectedStatus] = useState<ArticleStatus | "all">(
     "all",
   );
@@ -62,6 +67,7 @@ export default function Home() {
   }, [articles, selectedStatus, searchTerm]);
 
   const trendingTags = useMemo(() => getTrendingTags(articles, 4), [articles]);
+  const canManage = role === "admin";
 
   const resetForm = () => {
     setTitle("");
@@ -106,6 +112,7 @@ export default function Home() {
       const all = (await listArticles()) as Article[];
       if (!mounted) return;
       setArticles(all);
+      setRole(getStoredRole("admin"));
     })();
     const stop = subscribeToArticleEvents(async () => {
       const all = (await listArticles()) as Article[];
@@ -118,6 +125,10 @@ export default function Home() {
     };
   }, []);
 
+  useEffect(() => {
+    setStoredRole(role);
+  }, [role]);
+
   return (
     <main className="min-h-screen bg-[radial-gradient(circle_at_top,#f8fafc,#e2e8f0_70%)] px-6 py-10 text-slate-950">
       <div className="mx-auto flex w-full max-w-6xl flex-col gap-8">
@@ -126,6 +137,36 @@ export default function Home() {
             <Badge variant="success">Admin</Badge>
             <Badge variant="subtle">Create and submit content</Badge>
           </div>
+
+          <div className="grid gap-4 rounded-3xl border border-slate-200 bg-slate-50/80 p-4 md:grid-cols-[1fr_auto] md:items-end">
+            <label className="space-y-2 text-sm font-medium text-slate-700">
+              <span>Signed in as</span>
+              <select
+                className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm outline-none transition focus:border-slate-400"
+                value={role}
+                onChange={(event) => setRole(event.target.value as UserRole)}
+              >
+                {Object.entries(ROLE_LABELS).map(([value, label]) => (
+                  <option key={value} value={value}>
+                    {label}
+                  </option>
+                ))}
+              </select>
+            </label>
+
+            <div className="flex items-center justify-end">
+              <Badge variant={canManage ? "success" : "warning"}>
+                {canManage ? "Full access" : "Read-only preview"}
+              </Badge>
+            </div>
+          </div>
+
+          {!canManage ? (
+            <div className="rounded-3xl border border-amber-200 bg-amber-50/80 p-4 text-sm leading-6 text-amber-900">
+              Switch to the Admin role to create drafts or submit content for
+              review.
+            </div>
+          ) : null}
 
           <div className="max-w-2xl space-y-4">
             <h1 className="text-4xl font-semibold tracking-tight sm:text-5xl">
@@ -163,9 +204,15 @@ export default function Home() {
           </div>
 
           <div className="flex flex-wrap gap-3">
-            <Button onClick={() => createArticle("draft")}>Save Draft</Button>
+            <Button
+              disabled={!canManage}
+              onClick={() => createArticle("draft")}
+            >
+              Save Draft
+            </Button>
             <Button
               variant="secondary"
+              disabled={!canManage}
               onClick={() => createArticle("pending")}
             >
               Submit for Review
@@ -281,6 +328,7 @@ export default function Home() {
             <Button onClick={() => createArticle("draft")}>Save Draft</Button>
             <Button
               variant="secondary"
+              disabled={!canManage}
               onClick={() => createArticle("pending")}
             >
               Submit for Review
@@ -359,6 +407,7 @@ export default function Home() {
                       <Button
                         size="sm"
                         variant="secondary"
+                        disabled={!canManage}
                         onClick={() => submitExistingDraft(article.id)}
                       >
                         Submit for Review
