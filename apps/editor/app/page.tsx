@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo, useState, useEffect } from "react";
 
 import {
   Badge,
@@ -13,18 +13,25 @@ import {
   CardTitle,
   Code,
 } from "@repo/ui";
-import { listArticles } from "@repo/api";
-import { transitionArticle, type Article } from "@repo/db";
+import {
+  listArticles,
+  approveArticle as apiApproveArticle,
+  rejectArticle as apiRejectArticle,
+} from "@repo/api";
+import { type Article } from "@repo/db";
 
 export default function Home() {
-  const [articles, setArticles] = useState<Article[]>(() => listArticles());
+  const [articles, setArticles] = useState<Article[]>([]);
 
   const metrics = useMemo(
     () => ({
-      queueCount: articles.filter((article) => article.status === "pending").length,
-      draftCount: articles.filter((article) => article.status === "draft").length,
-      publishedCount: articles.filter((article) => article.status === "published")
+      queueCount: articles.filter((article) => article.status === "pending")
         .length,
+      draftCount: articles.filter((article) => article.status === "draft")
+        .length,
+      publishedCount: articles.filter(
+        (article) => article.status === "published",
+      ).length,
     }),
     [articles],
   );
@@ -34,26 +41,34 @@ export default function Home() {
     [articles],
   );
 
-  const approveArticle = (articleId: string) => {
-    setArticles((current) =>
-      current.map((article) =>
-        article.id === articleId ? transitionArticle(article, "published") : article,
-      ),
-    );
+  const approveArticle = async (articleId: string) => {
+    await apiApproveArticle(articleId);
+    const latest = (await listArticles()) as Article[];
+    setArticles(latest);
   };
 
-  const rejectArticle = (articleId: string) => {
-    setArticles((current) =>
-      current.map((article) =>
-        article.id === articleId ? transitionArticle(article, "draft") : article,
-      ),
-    );
+  const rejectArticle = async (articleId: string) => {
+    await apiRejectArticle(articleId);
+    const latest = (await listArticles()) as Article[];
+    setArticles(latest);
   };
+
+  useEffect(() => {
+    let mounted = true;
+    (async function load() {
+      const all = (await listArticles()) as Article[];
+      if (!mounted) return;
+      setArticles(all);
+    })();
+    return () => {
+      mounted = false;
+    };
+  }, []);
 
   return (
-    <main className="min-h-screen bg-[radial-gradient(circle_at_center,_#fff7ed,_#f8fafc_60%)] px-6 py-10 text-slate-950">
+    <main className="min-h-screen bg-[radial-gradient(circle_at_center,#fff7ed,#f8fafc_60%)] px-6 py-10 text-slate-950">
       <div className="mx-auto flex w-full max-w-6xl flex-col gap-6">
-        <section className="rounded-[2rem] border border-amber-200 bg-white p-8 shadow-[0_20px_80px_rgba(15,23,42,0.06)]">
+        <section className="rounded-4xl border border-amber-200 bg-white p-8 shadow-[0_20px_80px_rgba(15,23,42,0.06)]">
           <div className="flex flex-wrap items-center gap-3">
             <Badge variant="warning">Editor</Badge>
             <Badge variant="subtle">Review pending content</Badge>
@@ -94,12 +109,16 @@ export default function Home() {
               </div>
               <div className="rounded-xl border border-slate-200 p-3">
                 <p className="text-xs text-slate-500">Published</p>
-                <p className="text-2xl font-semibold">{metrics.publishedCount}</p>
+                <p className="text-2xl font-semibold">
+                  {metrics.publishedCount}
+                </p>
               </div>
             </div>
 
             <div className="space-y-3">
-              <p className="text-sm font-medium text-slate-900">Pending articles</p>
+              <p className="text-sm font-medium text-slate-900">
+                Pending articles
+              </p>
               <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
                 {queue.map((article) => (
                   <div
@@ -111,7 +130,9 @@ export default function Home() {
                         <p className="text-sm font-semibold text-slate-950">
                           {article.title}
                         </p>
-                        <p className="mt-1 text-xs text-slate-500">/{article.slug}</p>
+                        <p className="mt-1 text-xs text-slate-500">
+                          /{article.slug}
+                        </p>
                       </div>
                       <Badge variant="warning">Pending</Badge>
                     </div>
@@ -121,7 +142,10 @@ export default function Home() {
                     </p>
 
                     <div className="mt-4 flex flex-wrap gap-2">
-                      <Button size="sm" onClick={() => approveArticle(article.id)}>
+                      <Button
+                        size="sm"
+                        onClick={() => approveArticle(article.id)}
+                      >
                         Approve
                       </Button>
                       <Button

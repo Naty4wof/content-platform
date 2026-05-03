@@ -1,70 +1,44 @@
 "use client";
 
-import {
-  forwardRef,
-  type ButtonHTMLAttributes,
-  type ReactNode,
-} from "react";
-
+import { forwardRef, type ButtonHTMLAttributes } from "react";
 import { cn } from "./cn";
 
-type ButtonVariant = "primary" | "secondary" | "ghost";
-type ButtonSize = "sm" | "md" | "lg";
+type Variant = "primary" | "secondary" | "ghost";
+type Size = "sm" | "md" | "lg";
 
 interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
-  children: ReactNode;
-  className?: string;
-  variant?: ButtonVariant;
-  size?: ButtonSize;
-  active?: boolean;
+  variant?: Variant;
+  size?: Size;
 }
 
-const variantClasses: Record<ButtonVariant, string> = {
+const base =
+  "inline-flex items-center justify-center rounded-md font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 disabled:opacity-50 disabled:pointer-events-none";
+
+const variants: Record<Variant, string> = {
   primary:
-    "border-slate-900 bg-slate-950 text-white shadow-sm hover:-translate-y-0.5 hover:bg-slate-800 hover:shadow-md active:translate-y-0",
+    "bg-black text-white hover:bg-zinc-800 focus-visible:ring-black",
   secondary:
-    "border-slate-200 bg-white text-slate-900 shadow-sm hover:-translate-y-0.5 hover:border-slate-300 hover:bg-slate-50 hover:shadow-md active:translate-y-0",
+    "bg-zinc-100 text-black hover:bg-zinc-200 focus-visible:ring-zinc-400",
   ghost:
-    "border-transparent bg-transparent text-slate-600 hover:border-slate-200 hover:bg-slate-100 hover:text-slate-950",
+    "bg-transparent text-zinc-700 hover:bg-zinc-100 focus-visible:ring-zinc-400",
 };
 
-const sizeClasses: Record<ButtonSize, string> = {
-  sm: "h-9 rounded-lg px-3.5 text-sm",
-  md: "h-11 rounded-xl px-4.5 text-sm",
-  lg: "h-12 rounded-xl px-6 text-base",
+const sizes: Record<Size, string> = {
+  sm: "h-8 px-3 text-sm",
+  md: "h-10 px-4 text-sm",
+  lg: "h-12 px-6 text-base",
 };
 
 export const Button = forwardRef<HTMLButtonElement, ButtonProps>(
-  (
-    {
-      children,
-      className,
-      variant = "primary",
-      size = "md",
-      active = false,
-      type = "button",
-      ...props
-    },
-    ref,
-  ) => {
+  ({ className, variant = "primary", size = "md", ...props }, ref) => {
     return (
       <button
         ref={ref}
-        type={type}
-        aria-pressed={active}
-        className={cn(
-          "inline-flex items-center justify-center gap-2 whitespace-nowrap border font-medium tracking-[0.01em] transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-400 focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50",
-          variantClasses[variant],
-          sizeClasses[size],
-          active && "ring-2 ring-slate-300 ring-offset-2",
-          className,
-        )}
+        className={cn(base, variants[variant], sizes[size], className)}
         {...props}
-      >
-        {children}
-      </button>
+      />
     );
-  },
+  }
 );
 
 Button.displayName = "Button";

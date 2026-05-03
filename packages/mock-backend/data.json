@@ -1,0 +1,66 @@
+[
+  {
+    "id": "61c47bab-47ae-469b-a6e8-b9c64c665eec",
+    "slug": "huhu",
+    "title": "huhu",
+    "summary": "uhuhuhuhu",
+    "body": "huhuhuhuhuhuhuhuhuhuhuuhuh huhuhuhuhuhuh",
+    "authorId": "admin_01",
+    "status": "published",
+    "tags": [
+      "strategy",
+      "platform"
+    ],
+    "createdAt": "2026-05-03T22:21:27.685Z",
+    "updatedAt": "2026-05-03T22:21:49.304Z",
+    "publishedAt": "2026-05-03T22:21:49.304Z"
+  },
+  {
+    "id": "60842a2f-be92-4801-b6f4-c72f769034d0",
+    "slug": "monorepo-content-strategy-for-q2",
+    "title": "Monorepo content strategy for Q2",
+    "summary": "How shared packages accelerate publishing teams.",
+    "body": "Draft content body",
+    "authorId": "admin_01",
+    "status": "draft",
+    "tags": [
+      "strategy",
+      "platform"
+    ],
+    "createdAt": "2026-05-03T22:15:19.951Z",
+    "updatedAt": "2026-05-03T22:15:19.951Z",
+    "publishedAt": null
+  },
+  {
+    "id": "85e16bc4-fc21-41d0-84a4-b7cb4559cf73",
+    "slug": "editorial-quality-checklist",
+    "title": "Editorial quality checklist",
+    "summary": "A checklist to standardize editorial reviews.",
+    "body": "Editor checklist body",
+    "authorId": "admin_02",
+    "status": "pending",
+    "tags": [
+      "editorial",
+      "quality"
+    ],
+    "createdAt": "2026-05-03T22:15:19.967Z",
+    "updatedAt": "2026-05-03T22:15:19.968Z",
+    "publishedAt": null
+  },
+  {
+    "id": "843b64ae-7579-4fd1-911f-2e345a5f6068",
+    "slug": "launch-notes-for-the-publishing-pipeline",
+    "title": "Launch notes for the publishing pipeline",
+    "summary": "A finished article ready for the client portal.",
+    "body": "Published article body",
+    "authorId": "admin_03",
+    "status": "published",
+    "tags": [
+      "launch",
+      "updates"
+    ],
+    "createdAt": "2026-05-03T22:15:19.968Z",
+    "updatedAt": "2026-05-03T17:15:19.968Z",
+    "publishedAt": "2026-05-03T17:15:19.968Z"
+  }
+]

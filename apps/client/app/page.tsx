@@ -1,3 +1,6 @@
+"use client";
+
+import { useEffect, useState } from "react";
 import {
   Badge,
   Button,
@@ -10,14 +13,31 @@ import {
   Code,
 } from "@repo/ui";
 import { listPublishedArticles } from "@repo/api";
+import { type Article } from "@repo/db";
 
 export default function Home() {
-  const publishedArticles = listPublishedArticles();
+  const [publishedArticles, setPublishedArticles] = useState<Article[]>([]);
+
+  useEffect(() => {
+    let mounted = true;
+    (async function load() {
+      try {
+        const all = (await listPublishedArticles()) as Article[];
+        if (!mounted) return;
+        setPublishedArticles(all);
+      } catch (err) {
+        // ignore for now
+      }
+    })();
+    return () => {
+      mounted = false;
+    };
+  }, []);
 
   return (
-    <main className="min-h-screen bg-[linear-gradient(180deg,_#f8fafc_0%,_#eff6ff_100%)] px-6 py-10 text-slate-950">
+    <main className="min-h-screen bg-[linear-gradient(180deg,#f8fafc_0%,#eff6ff_100%)] px-6 py-10 text-slate-950">
       <div className="mx-auto grid w-full max-w-6xl gap-6 lg:grid-cols-[1.2fr_0.8fr]">
-        <section className="rounded-[2rem] border border-slate-200 bg-white p-8 shadow-[0_20px_80px_rgba(15,23,42,0.06)]">
+        <section className="rounded-4xl border border-slate-200 bg-white p-8 shadow-[0_20px_80px_rgba(15,23,42,0.06)]">
           <Badge variant="subtle">Client portal</Badge>
           <div className="mt-5 max-w-2xl space-y-4">
             <h1 className="text-4xl font-semibold tracking-tight sm:text-5xl">

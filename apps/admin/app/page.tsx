@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo, useState, useEffect } from "react";
 
 import {
   Badge,
@@ -12,13 +12,12 @@ import {
   CardHeader,
   CardTitle,
 } from "@repo/ui";
-import { listArticles } from "@repo/api";
 import {
-  createDraftArticle,
-  transitionArticle,
-  type Article,
-  type ArticleStatus,
-} from "@repo/db";
+  listArticles,
+  createArticle as apiCreateArticle,
+  submitForReview as apiSubmitForReview,
+} from "@repo/api";
+import { type Article, type ArticleStatus } from "@repo/db";
 
 const filters: Array<{ label: string; value: ArticleStatus | "all" }> = [
   { label: "All", value: "all" },
@@ -28,10 +27,10 @@ const filters: Array<{ label: string; value: ArticleStatus | "all" }> = [
 ];
 
 export default function Home() {
-  const [articles, setArticles] = useState<Article[]>(() => listArticles());
-  const [selectedStatus, setSelectedStatus] = useState<
-    ArticleStatus | "all"
-  >("all");
+  const [articles, setArticles] = useState<Article[]>([]);
+  const [selectedStatus, setSelectedStatus] = useState<ArticleStatus | "all">(
+    "all",
+  );
   const [title, setTitle] = useState("");
   const [summary, setSummary] = useState("");
   const [body, setBody] = useState("");
@@ -40,11 +39,13 @@ export default function Home() {
   const metrics = useMemo(
     () => ({
       totalArticles: articles.length,
-      draftCount: articles.filter((article) => article.status === "draft").length,
+      draftCount: articles.filter((article) => article.status === "draft")
+        .length,
       pendingCount: articles.filter((article) => article.status === "pending")
         .length,
-      publishedCount: articles.filter((article) => article.status === "published")
-        .length,
+      publishedCount: articles.filter(
+        (article) => article.status === "published",
+      ).length,
     }),
     [articles],
   );
@@ -64,12 +65,11 @@ export default function Home() {
     setTags("strategy, platform");
   };
 
-  const createArticle = (status: "draft" | "pending") => {
+  const createArticle = async (status: "draft" | "pending") => {
     if (!title.trim() || !summary.trim() || !body.trim()) {
       return;
     }
-
-    const article = createDraftArticle({
+    const created = await apiCreateArticle({
       title,
       summary,
       body,
@@ -80,25 +80,37 @@ export default function Home() {
         .filter(Boolean),
     });
 
-    const nextArticle =
-      status === "pending" ? transitionArticle(article, "pending") : article;
+    if (status === "pending") {
+      await apiSubmitForReview(created.id);
+    }
 
-    setArticles((current) => [nextArticle, ...current]);
+    const latest = (await listArticles()) as Article[];
+    setArticles(latest);
     resetForm();
   };
 
-  const submitExistingDraft = (articleId: string) => {
-    setArticles((current) =>
-      current.map((article) =>
-        article.id === articleId ? transitionArticle(article, "pending") : article,
-      ),
-    );
+  const submitExistingDraft = async (articleId: string) => {
+    await apiSubmitForReview(articleId);
+    const latest = (await listArticles()) as Article[];
+    setArticles(latest);
   };
 
+  useEffect(() => {
+    let mounted = true;
+    (async function load() {
+      const all = (await listArticles()) as Article[];
+      if (!mounted) return;
+      setArticles(all);
+    })();
+    return () => {
+      mounted = false;
+    };
+  }, []);
+
   return (
-    <main className="min-h-screen bg-[radial-gradient(circle_at_top,_#f8fafc,_#e2e8f0_70%)] px-6 py-10 text-slate-950">
+    <main className="min-h-screen bg-[radial-gradient(circle_at_top,#f8fafc,#e2e8f0_70%)] px-6 py-10 text-slate-950">
       <div className="mx-auto flex w-full max-w-6xl flex-col gap-8">
-        <section className="flex flex-col gap-6 rounded-[2rem] border border-white/70 bg-white p-8 shadow-[0_20px_80px_rgba(15,23,42,0.08)]">
+        <section className="flex flex-col gap-6 rounded-4xl border border-white/70 bg-white p-8 shadow-[0_20px_80px_rgba(15,23,42,0.08)]">
           <div className="flex flex-wrap items-center gap-3">
             <Badge variant="success">Admin</Badge>
             <Badge variant="subtle">Create and submit content</Badge>
@@ -116,7 +128,10 @@ export default function Home() {
 
           <div className="flex flex-wrap gap-3">
             <Button onClick={() => createArticle("draft")}>Save Draft</Button>
-            <Button variant="secondary" onClick={() => createArticle("pending")}>
+            <Button
+              variant="secondary"
+              onClick={() => createArticle("pending")}
+            >
               Submit for Review
             </Button>
           </div>
@@ -142,10 +157,14 @@ export default function Home() {
           <Card>
             <CardHeader>
               <CardTitle>Pending</CardTitle>
-              <CardDescription>Items waiting for editorial review.</CardDescription>
+              <CardDescription>
+                Items waiting for editorial review.
+              </CardDescription>
             </CardHeader>
             <CardContent>
-              <div className="text-3xl font-semibold">{metrics.pendingCount}</div>
+              <div className="text-3xl font-semibold">
+                {metrics.pendingCount}
+              </div>
               <p className="mt-2 text-sm text-slate-600">
                 These articles move into the editor queue.
               </p>
@@ -161,7 +180,9 @@ export default function Home() {
               <CardDescription>Content visible to clients.</CardDescription>
             </CardHeader>
             <CardContent>
-              <div className="text-3xl font-semibold">{metrics.publishedCount}</div>
+              <div className="text-3xl font-semibold">
+                {metrics.publishedCount}
+              </div>
               <p className="mt-2 text-sm text-slate-600">
                 Published articles appear in the client app.
               </p>
@@ -222,7 +243,10 @@ export default function Home() {
           </CardContent>
           <CardFooter className="flex flex-wrap gap-3">
             <Button onClick={() => createArticle("draft")}>Save Draft</Button>
-            <Button variant="secondary" onClick={() => createArticle("pending")}>
+            <Button
+              variant="secondary"
+              onClick={() => createArticle("pending")}
+            >
               Submit for Review
             </Button>
           </CardFooter>
@@ -241,8 +265,9 @@ export default function Home() {
                 <Button
                   key={filter.value}
                   size="sm"
-                  variant={filter.value === selectedStatus ? "primary" : "secondary"}
-                  active={filter.value === selectedStatus}
+                  variant={
+                    filter.value === selectedStatus ? "primary" : "secondary"
+                  }
                   onClick={() => setSelectedStatus(filter.value)}
                 >
                   {filter.label}
@@ -261,7 +286,9 @@ export default function Home() {
                       <p className="text-sm font-semibold text-slate-950">
                         {article.title}
                       </p>
-                      <p className="mt-1 text-xs text-slate-500">/{article.slug}</p>
+                      <p className="mt-1 text-xs text-slate-500">
+                        /{article.slug}
+                      </p>
                     </div>
                     <Badge
                       variant={
