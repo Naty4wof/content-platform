@@ -34,6 +34,71 @@ export interface ArticleEventPayload {
   article: Article;
 }
 
+export interface ArticleSearchOptions {
+  query?: string;
+  status?: ArticleStatus | "all";
+  tag?: string;
+  limit?: number;
+}
+
+export function searchArticles(
+  articles: Article[],
+  options: ArticleSearchOptions = {},
+): Article[] {
+  const query = options.query?.trim().toLowerCase();
+  const tag = options.tag?.trim().toLowerCase();
+
+  return articles
+    .filter((article) => {
+      const matchesStatus =
+        !options.status ||
+        options.status === "all" ||
+        article.status === options.status;
+
+      const matchesTag =
+        !tag ||
+        article.tags.some((articleTag) => articleTag.toLowerCase() === tag);
+
+      const matchesQuery =
+        !query ||
+        [
+          article.title,
+          article.summary,
+          article.body,
+          article.slug,
+          ...article.tags,
+        ]
+          .join(" ")
+          .toLowerCase()
+          .includes(query);
+
+      return matchesStatus && matchesTag && matchesQuery;
+    })
+    .sort((left, right) => right.updatedAt.localeCompare(left.updatedAt))
+    .slice(0, options.limit ?? articles.length);
+}
+
+export function getTrendingTags(
+  articles: Article[],
+  limit = 5,
+): Array<{ tag: string; count: number }> {
+  const counts = new Map<string, number>();
+
+  for (const article of articles) {
+    for (const tag of article.tags) {
+      counts.set(tag, (counts.get(tag) ?? 0) + 1);
+    }
+  }
+
+  return Array.from(counts.entries())
+    .map(([tag, count]) => ({ tag, count }))
+    .sort(
+      (left, right) =>
+        right.count - left.count || left.tag.localeCompare(right.tag),
+    )
+    .slice(0, limit);
+}
+
 export async function listArticles(): Promise<Article[]> {
   return fetchJson(`/articles`);
 }

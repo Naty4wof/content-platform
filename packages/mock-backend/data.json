@@ -1,66 +1,54 @@
 [
   {
-    "id": "61c47bab-47ae-469b-a6e8-b9c64c665eec",
-    "slug": "huhu",
-    "title": "huhu",
-    "summary": "uhuhuhuhu",
-    "body": "huhuhuhuhuhuhuhuhuhuhuuhuh huhuhuhuhuhuh",
-    "authorId": "admin_01",
-    "status": "published",
-    "tags": [
-      "strategy",
-      "platform"
-    ],
-    "createdAt": "2026-05-03T22:21:27.685Z",
-    "updatedAt": "2026-05-03T22:21:49.304Z",
-    "publishedAt": "2026-05-03T22:21:49.304Z"
-  },
-  {
-    "id": "60842a2f-be92-4801-b6f4-c72f769034d0",
-    "slug": "monorepo-content-strategy-for-q2",
-    "title": "Monorepo content strategy for Q2",
-    "summary": "How shared packages accelerate publishing teams.",
-    "body": "Draft content body",
+    "id": "8a3f41a7-4bf3-4a08-bb63-93cd0b5c5c01",
+    "slug": "q2-editorial-roadmap-for-the-content-team",
+    "title": "Q2 editorial roadmap for the content team",
+    "summary": "A planning draft that outlines upcoming campaigns, review cycles, and publishing goals.",
+    "body": "The content team will focus on launch sequencing, evergreen updates, and a tighter review cadence. This draft captures the quarterly plan before editorial sign-off.",
     "authorId": "admin_01",
     "status": "draft",
-    "tags": [
-      "strategy",
-      "platform"
-    ],
-    "createdAt": "2026-05-03T22:15:19.951Z",
-    "updatedAt": "2026-05-03T22:15:19.951Z",
+    "tags": ["strategy", "planning", "quarterly"],
+    "createdAt": "2026-05-04T09:00:00.000Z",
+    "updatedAt": "2026-05-04T09:00:00.000Z",
     "publishedAt": null
   },
   {
-    "id": "85e16bc4-fc21-41d0-84a4-b7cb4559cf73",
-    "slug": "editorial-quality-checklist",
-    "title": "Editorial quality checklist",
-    "summary": "A checklist to standardize editorial reviews.",
-    "body": "Editor checklist body",
+    "id": "c4c8e3f4-f6e4-45de-8b04-85c2f17f5b21",
+    "slug": "how-to-standardize-article-review-across-teams",
+    "title": "How to standardize article review across teams",
+    "summary": "A practical checklist for editors and admins to keep reviews consistent.",
+    "body": "This article covers title checks, summary length, metadata review, and final approval steps so every article follows the same quality bar.",
     "authorId": "admin_02",
-    "status": "draft",
-    "tags": [
-      "editorial",
-      "quality"
-    ],
-    "createdAt": "2026-05-03T22:15:19.967Z",
-    "updatedAt": "2026-05-03T22:49:53.263Z",
+    "status": "pending",
+    "tags": ["editorial", "workflow", "quality"],
+    "createdAt": "2026-05-04T09:05:00.000Z",
+    "updatedAt": "2026-05-04T09:10:00.000Z",
     "publishedAt": null
   },
   {
-    "id": "843b64ae-7579-4fd1-911f-2e345a5f6068",
-    "slug": "launch-notes-for-the-publishing-pipeline",
-    "title": "Launch notes for the publishing pipeline",
-    "summary": "A finished article ready for the client portal.",
-    "body": "Published article body",
+    "id": "e0f7a4ab-0d1e-4a8f-8db0-25ef4d9d6d31",
+    "slug": "publishing-pipeline-launch-notes",
+    "title": "Publishing pipeline launch notes",
+    "summary": "A short rollout update for teams using the new monorepo content platform.",
+    "body": "The publishing workflow now spans admin, editor, and client experiences, with shared UI, live sync, and persistent article state.",
     "authorId": "admin_03",
     "status": "published",
-    "tags": [
-      "launch",
-      "updates"
-    ],
-    "createdAt": "2026-05-03T22:15:19.968Z",
-    "updatedAt": "2026-05-03T17:15:19.968Z",
-    "publishedAt": "2026-05-03T17:15:19.968Z"
+    "tags": ["launch", "updates", "platform"],
+    "createdAt": "2026-05-04T09:15:00.000Z",
+    "updatedAt": "2026-05-04T09:15:00.000Z",
+    "publishedAt": "2026-05-04T09:15:00.000Z"
+  },
+  {
+    "id": "2a9f63c0-6b5e-4af1-93d5-76f9c7d19d44",
+    "slug": "a-simple-checklist-for-publishing-fast-without-missing-details",
+    "title": "A simple checklist for publishing fast without missing details",
+    "summary": "A client-friendly guide that shows the finished product of the workflow.",
+    "body": "Strong publishing teams keep drafts focused, review queue items short, and live articles easy to scan on mobile and desktop.",
+    "authorId": "editor_01",
+    "status": "published",
+    "tags": ["guides", "operations", "publishing"],
+    "createdAt": "2026-05-03T07:45:00.000Z",
+    "updatedAt": "2026-05-03T07:45:00.000Z",
+    "publishedAt": "2026-05-03T07:45:00.000Z"
   }
 ]

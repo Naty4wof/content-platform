@@ -16,6 +16,8 @@ import {
   listArticles,
   createArticle as apiCreateArticle,
   submitForReview as apiSubmitForReview,
+  searchArticles,
+  getTrendingTags,
   subscribeToArticleEvents,
 } from "@repo/api";
 import { type Article, type ArticleStatus } from "@repo/db";
@@ -36,6 +38,7 @@ export default function Home() {
   const [summary, setSummary] = useState("");
   const [body, setBody] = useState("");
   const [tags, setTags] = useState("strategy, platform");
+  const [searchTerm, setSearchTerm] = useState("");
 
   const metrics = useMemo(
     () => ({
@@ -52,12 +55,13 @@ export default function Home() {
   );
 
   const visibleArticles = useMemo(() => {
-    if (selectedStatus === "all") {
-      return articles;
-    }
+    return searchArticles(articles, {
+      status: selectedStatus,
+      query: searchTerm,
+    });
+  }, [articles, selectedStatus, searchTerm]);
 
-    return articles.filter((article) => article.status === selectedStatus);
-  }, [articles, selectedStatus]);
+  const trendingTags = useMemo(() => getTrendingTags(articles, 4), [articles]);
 
   const resetForm = () => {
     setTitle("");
@@ -131,6 +135,31 @@ export default function Home() {
               Draft articles, save them for later, or submit them directly into
               the review queue for the editor app.
             </p>
+          </div>
+
+          <div className="grid gap-4 rounded-3xl border border-slate-200 bg-slate-50/80 p-4 md:grid-cols-[1fr_auto] md:items-end">
+            <label className="space-y-2 text-sm font-medium text-slate-700">
+              <span>Search content</span>
+              <input
+                className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm outline-none transition focus:border-slate-400"
+                value={searchTerm}
+                onChange={(event) => setSearchTerm(event.target.value)}
+                placeholder="Search titles, summaries, tags, or body"
+              />
+            </label>
+
+            <div className="flex flex-wrap gap-2 md:justify-end">
+              {trendingTags.map((item) => (
+                <Button
+                  key={item.tag}
+                  size="sm"
+                  variant="secondary"
+                  onClick={() => setSearchTerm(item.tag)}
+                >
+                  {item.tag} · {item.count}
+                </Button>
+              ))}
+            </div>
           </div>
 
           <div className="flex flex-wrap gap-3">
@@ -263,7 +292,7 @@ export default function Home() {
           <CardHeader>
             <CardTitle>Article pipeline</CardTitle>
             <CardDescription>
-              Filter articles and submit drafts into review.
+              Search and filter articles before submitting drafts into review.
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-5">

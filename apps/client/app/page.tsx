@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   Badge,
   Button,
@@ -12,12 +12,27 @@ import {
   CardTitle,
   Code,
 } from "@repo/ui";
-import { listPublishedArticles } from "@repo/api";
-import { subscribeToArticleEvents } from "@repo/api";
+import {
+  getTrendingTags,
+  listPublishedArticles,
+  searchArticles,
+  subscribeToArticleEvents,
+} from "@repo/api";
 import { type Article } from "@repo/db";
 
 export default function Home() {
   const [publishedArticles, setPublishedArticles] = useState<Article[]>([]);
+  const [searchTerm, setSearchTerm] = useState("");
+
+  const trendingTags = useMemo(
+    () => getTrendingTags(publishedArticles, 4),
+    [publishedArticles],
+  );
+
+  const visibleArticles = useMemo(
+    () => searchArticles(publishedArticles, { query: searchTerm }),
+    [publishedArticles, searchTerm],
+  );
 
   useEffect(() => {
     let mounted = true;
@@ -60,6 +75,31 @@ export default function Home() {
             </p>
           </div>
 
+          <div className="mt-8 grid gap-4 rounded-3xl border border-slate-200 bg-slate-50/80 p-4 md:grid-cols-[1fr_auto] md:items-end">
+            <label className="space-y-2 text-sm font-medium text-slate-700">
+              <span>Search published articles</span>
+              <input
+                className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm outline-none transition focus:border-slate-400"
+                value={searchTerm}
+                onChange={(event) => setSearchTerm(event.target.value)}
+                placeholder="Search titles, summaries, or tags"
+              />
+            </label>
+
+            <div className="flex flex-wrap gap-2 md:justify-end">
+              {trendingTags.map((item) => (
+                <Button
+                  key={item.tag}
+                  size="sm"
+                  variant="secondary"
+                  onClick={() => setSearchTerm(item.tag)}
+                >
+                  {item.tag} · {item.count}
+                </Button>
+              ))}
+            </div>
+          </div>
+
           <div className="mt-8 flex flex-wrap gap-3">
             <Button>Browse updates</Button>
             <Button variant="secondary">Contact support</Button>
@@ -70,21 +110,29 @@ export default function Home() {
           <CardHeader>
             <CardTitle>Published now</CardTitle>
             <CardDescription>
-              Articles visible to end users from shared packages.
+              Articles visible to end users from shared packages, searchable by
+              topic.
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
-            {publishedArticles.length === 0 ? (
+            {visibleArticles.length === 0 ? (
               <p className="text-sm leading-6 text-slate-600">
-                No published articles yet.
+                No published articles match your search.
               </p>
             ) : (
               <ul className="space-y-2 text-sm text-slate-700">
-                {publishedArticles.map((article) => (
-                  <li key={article.id} className="rounded-lg border border-slate-200 p-3">
-                    <p className="font-medium text-slate-900">{article.title}</p>
+                {visibleArticles.map((article) => (
+                  <li
+                    key={article.id}
+                    className="rounded-lg border border-slate-200 p-3"
+                  >
+                    <p className="font-medium text-slate-900">
+                      {article.title}
+                    </p>
                     <p className="text-slate-600">{article.summary}</p>
-                    <p className="mt-1 text-xs text-slate-500">/{article.slug}</p>
+                    <p className="mt-1 text-xs text-slate-500">
+                      /{article.slug}
+                    </p>
                   </li>
                 ))}
               </ul>

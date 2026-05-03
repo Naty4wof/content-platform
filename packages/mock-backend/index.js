@@ -21,7 +21,14 @@ function randId() {
   return Math.random().toString(36).slice(2, 9);
 }
 
-function createDraftArticle({ title, summary, body, authorId, tags = [], slug }) {
+function createDraftArticle({
+  title,
+  summary,
+  body,
+  authorId,
+  tags = [],
+  slug,
+}) {
   const now = nowIso();
   return {
     id: randId(),
@@ -51,25 +58,32 @@ function transitionArticle(article, next, now = nowIso()) {
   if (!canTransition(article.status, next)) {
     throw new Error(`Invalid transition ${article.status} -> ${next}`);
   }
-  return { ...article, status: next, updatedAt: now, publishedAt: next === "published" ? now : null };
+  return {
+    ...article,
+    status: next,
+    updatedAt: now,
+    publishedAt: next === "published" ? now : null,
+  };
 }
 
 function buildSeed() {
   const draft = createDraftArticle({
-    title: "Monorepo content strategy for Q2",
-    summary: "How shared packages accelerate publishing teams.",
-    body: "Draft content body",
+    title: "Q2 editorial roadmap for the content team",
+    summary:
+      "A planning draft that outlines upcoming campaigns, review cycles, and publishing goals.",
+    body: "The content team will focus on launch sequencing, evergreen updates, and a tighter review cadence. This draft captures the quarterly plan before editorial sign-off.",
     authorId: "admin_01",
-    tags: ["strategy", "platform"],
+    tags: ["strategy", "planning", "quarterly"],
   });
 
   const review = transitionArticle(
     createDraftArticle({
-      title: "Editorial quality checklist",
-      summary: "A checklist to standardize editorial reviews.",
-      body: "Editor checklist body",
+      title: "How to standardize article review across teams",
+      summary:
+        "A practical checklist for editors and admins to keep reviews consistent.",
+      body: "This article covers title checks, summary length, metadata review, and final approval steps so every article follows the same quality bar.",
       authorId: "admin_02",
-      tags: ["editorial", "quality"],
+      tags: ["editorial", "workflow", "quality"],
     }),
     "pending",
   );
@@ -77,11 +91,12 @@ function buildSeed() {
   const published = transitionArticle(
     transitionArticle(
       createDraftArticle({
-        title: "Launch notes for the publishing pipeline",
-        summary: "A finished article ready for the client portal.",
-        body: "Published article body",
+        title: "Publishing pipeline launch notes",
+        summary:
+          "A short rollout update for teams using the new monorepo content platform.",
+        body: "The publishing workflow now spans admin, editor, and client experiences, with shared UI, live sync, and persistent article state.",
         authorId: "admin_03",
-        tags: ["launch", "updates"],
+        tags: ["launch", "updates", "platform"],
       }),
       "pending",
     ),
@@ -89,7 +104,23 @@ function buildSeed() {
     new Date(Date.now() - 1000 * 60 * 60 * 5).toISOString(),
   );
 
-  return [draft, review, published];
+  const publishedHowTo = transitionArticle(
+    transitionArticle(
+      createDraftArticle({
+        title: "A simple checklist for publishing fast without missing details",
+        summary:
+          "A client-friendly guide that shows the finished product of the workflow.",
+        body: "Strong publishing teams keep drafts focused, review queue items short, and live articles easy to scan on mobile and desktop.",
+        authorId: "editor_01",
+        tags: ["guides", "operations", "publishing"],
+      }),
+      "pending",
+    ),
+    "published",
+    new Date(Date.now() - 1000 * 60 * 60 * 26).toISOString(),
+  );
+
+  return [draft, review, published, publishedHowTo];
 }
 
 function loadData() {
