@@ -22,6 +22,8 @@ import {
   setStoredRole,
   ROLE_LABELS,
   subscribeToArticleEvents,
+  trackAction,
+  trackPageView,
   type UserRole,
 } from "@repo/api";
 import { type Article } from "@repo/db";
@@ -29,7 +31,9 @@ import { type Article } from "@repo/db";
 export default function Home() {
   const [articles, setArticles] = useState<Article[]>([]);
   const [role, setRole] = useState<UserRole>("editor");
-  const [selectedArticleId, setSelectedArticleId] = useState<string | null>(null);
+  const [selectedArticleId, setSelectedArticleId] = useState<string | null>(
+    null,
+  );
 
   const metrics = useMemo(
     () => ({
@@ -56,12 +60,14 @@ export default function Home() {
 
   const approveArticle = async (articleId: string) => {
     await apiApproveArticle(articleId);
+    await trackAction("approve_article", role);
     const latest = (await listArticles()) as Article[];
     setArticles(latest);
   };
 
   const rejectArticle = async (articleId: string) => {
     await apiRejectArticle(articleId);
+    await trackAction("reject_article", role);
     const latest = (await listArticles()) as Article[];
     setArticles(latest);
   };
@@ -80,7 +86,9 @@ export default function Home() {
       const all = (await listArticles()) as Article[];
       if (!mounted) return;
       setArticles(all);
-      setRole(getStoredRole("editor"));
+      const storedRole = getStoredRole("editor");
+      setRole(storedRole);
+      void trackPageView("editor", storedRole);
     })();
     const stop = subscribeToArticleEvents(async () => {
       const all = (await listArticles()) as Article[];
@@ -265,7 +273,8 @@ export default function Home() {
           <CardHeader>
             <CardTitle>Review detail</CardTitle>
             <CardDescription>
-              Inspect the selected pending article before approving or rejecting it.
+              Inspect the selected pending article before approving or rejecting
+              it.
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
@@ -281,16 +290,23 @@ export default function Home() {
                     <p className="text-sm font-semibold text-slate-950">
                       {selectedArticle.title}
                     </p>
-                    <p className="mt-1 text-xs text-slate-500">/{selectedArticle.slug}</p>
+                    <p className="mt-1 text-xs text-slate-500">
+                      /{selectedArticle.slug}
+                    </p>
                   </div>
                   <Badge variant="warning">Pending review</Badge>
                 </div>
 
-                <p className="text-sm leading-6 text-slate-600">{selectedArticle.body}</p>
+                <p className="text-sm leading-6 text-slate-600">
+                  {selectedArticle.body}
+                </p>
 
                 <div className="grid gap-2 text-xs text-slate-500 sm:grid-cols-2">
                   <p>Author: {selectedArticle.authorId}</p>
-                  <p>Updated: {new Date(selectedArticle.updatedAt).toLocaleString()}</p>
+                  <p>
+                    Updated:{" "}
+                    {new Date(selectedArticle.updatedAt).toLocaleString()}
+                  </p>
                 </div>
 
                 <div className="flex flex-wrap gap-2">

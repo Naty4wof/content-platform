@@ -23,6 +23,10 @@ import {
   setStoredRole,
   ROLE_LABELS,
   subscribeToArticleEvents,
+  getAnalytics,
+  trackAction,
+  trackPageView,
+  trackSearch,
   type UserRole,
 } from "@repo/api";
 import { type Article, type ArticleStatus } from "@repo/db";
@@ -48,6 +52,11 @@ export default function Home() {
   const [selectedArticleId, setSelectedArticleId] = useState<string | null>(
     null,
   );
+  const [analytics, setAnalytics] = useState<{
+    pageViews: Record<string, number>;
+    searchTerms: Record<string, number>;
+    actions: Record<string, number>;
+  } | null>(null);
 
   const metrics = useMemo(
     () => ({
@@ -103,7 +112,10 @@ export default function Home() {
 
     if (status === "pending") {
       await apiSubmitForReview(created.id);
+      await trackAction("submit_article", role);
     }
+
+    await trackAction("create_article", role);
 
     const latest = (await listArticles()) as Article[];
     setArticles(latest);
@@ -112,6 +124,7 @@ export default function Home() {
 
   const submitExistingDraft = async (articleId: string) => {
     await apiSubmitForReview(articleId);
+    await trackAction("submit_article", role);
     const latest = (await listArticles()) as Article[];
     setArticles(latest);
   };
@@ -123,6 +136,7 @@ export default function Home() {
     for (const article of drafts) {
       await apiSubmitForReview(article.id);
     }
+    await trackAction("submit_visible_drafts", role);
     const latest = (await listArticles()) as Article[];
     setArticles(latest);
   };
@@ -134,11 +148,26 @@ export default function Home() {
       if (!mounted) return;
       setArticles(all);
       setRole(getStoredRole("admin"));
+      void trackPageView("admin", getStoredRole("admin"));
+      const snapshot = await getAnalytics();
+      if (!mounted) return;
+      setAnalytics({
+        pageViews: snapshot.pageViews,
+        searchTerms: snapshot.searchTerms,
+        actions: snapshot.actions,
+      });
     })();
     const stop = subscribeToArticleEvents(async () => {
       const all = (await listArticles()) as Article[];
       if (!mounted) return;
       setArticles(all);
+      const snapshot = await getAnalytics();
+      if (!mounted) return;
+      setAnalytics({
+        pageViews: snapshot.pageViews,
+        searchTerms: snapshot.searchTerms,
+        actions: snapshot.actions,
+      });
     });
     return () => {
       mounted = false;
@@ -219,7 +248,10 @@ export default function Home() {
               <input
                 className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm outline-none transition focus:border-slate-400"
                 value={searchTerm}
-                onChange={(event) => setSearchTerm(event.target.value)}
+                onChange={(event) => {
+                  setSearchTerm(event.target.value);
+                  void trackSearch(event.target.value, "admin", role);
+                }}
                 placeholder="Search titles, summaries, tags, or body"
               />
             </label>
@@ -314,6 +346,28 @@ export default function Home() {
             </CardContent>
             <CardFooter>
               <Badge variant="success">Live</Badge>
+            </CardFooter>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle>Observability</CardTitle>
+              <CardDescription>
+                Lightweight analytics for views, searches, and workflow actions.
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-3 text-sm text-slate-600">
+              <p>Page views: {analytics?.pageViews.admin ?? 0}</p>
+              <p>
+                Search terms tracked:{" "}
+                {Object.keys(analytics?.searchTerms ?? {}).length}
+              </p>
+              <p>
+                Recorded actions: {Object.keys(analytics?.actions ?? {}).length}
+              </p>
+            </CardContent>
+            <CardFooter>
+              <Badge variant="subtle">Analytics</Badge>
             </CardFooter>
           </Card>
         </section>

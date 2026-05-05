@@ -51,6 +51,23 @@ export interface EditorMetrics {
   publishedCount: number;
 }
 
+export interface AnalyticsEvent {
+  type: "page_view" | "search" | "action";
+  page?: string;
+  query?: string;
+  action?: string;
+  role?: UserRole;
+  createdAt?: string;
+}
+
+export interface AnalyticsSnapshot {
+  events: Array<AnalyticsEvent & { createdAt: string }>;
+  pageViews: Record<string, number>;
+  searchTerms: Record<string, number>;
+  actions: Record<string, number>;
+  lastUpdatedAt: string | null;
+}
+
 export interface ArticleEventPayload {
   type: "created" | "submitted" | "approved" | "rejected";
   article: Article;
@@ -183,6 +200,31 @@ export async function getEditorMetrics(): Promise<EditorMetrics> {
     draftCount: all.filter((a: Article) => a.status === "draft").length,
     publishedCount: all.filter((a: Article) => a.status === "published").length,
   };
+}
+
+export async function getAnalytics(): Promise<AnalyticsSnapshot> {
+  return fetchJson(`/analytics`);
+}
+
+export async function trackAnalyticsEvent(
+  event: AnalyticsEvent,
+): Promise<void> {
+  await fetchJson(`/analytics`, {
+    method: "POST",
+    body: JSON.stringify(event),
+  });
+}
+
+export function trackPageView(page: string, role?: UserRole) {
+  return trackAnalyticsEvent({ type: "page_view", page, role });
+}
+
+export function trackSearch(query: string, page: string, role?: UserRole) {
+  return trackAnalyticsEvent({ type: "search", query, page, role });
+}
+
+export function trackAction(action: string, role?: UserRole) {
+  return trackAnalyticsEvent({ type: "action", action, role });
 }
 
 export async function createArticle(input: Partial<Article>): Promise<Article> {

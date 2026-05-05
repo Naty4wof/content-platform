@@ -23,6 +23,8 @@ import {
   subscribeToArticleEvents,
   login,
   logout,
+  trackPageView,
+  trackSearch,
   type UserRole,
 } from "@repo/api";
 import { type Article } from "@repo/db";
@@ -33,7 +35,12 @@ export default function Home() {
   const [role, setRole] = useState<UserRole>("client");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [user, setUser] = useState<null | { id: string; email: string; role: UserRole; name?: string }>(null);
+  const [user, setUser] = useState<null | {
+    id: string;
+    email: string;
+    role: UserRole;
+    name?: string;
+  }>(null);
   const [authError, setAuthError] = useState<string | null>(null);
   const [authLoading, setAuthLoading] = useState(false);
   const [selectedArticleId, setSelectedArticleId] = useState<string | null>(
@@ -64,7 +71,9 @@ export default function Home() {
         const all = (await listPublishedArticles()) as Article[];
         if (!mounted) return;
         setPublishedArticles(all);
-        setRole(getStoredRole("client"));
+        const storedRole = getStoredRole("client");
+        setRole(storedRole);
+        void trackPageView("client", storedRole);
       } catch (err) {
         // ignore for now
       }
@@ -126,7 +135,9 @@ export default function Home() {
             <div className="ml-2 flex items-center gap-2">
               {user ? (
                 <>
-                  <span className="text-sm text-slate-700">Signed in as {user.name ?? user.email}</span>
+                  <span className="text-sm text-slate-700">
+                    Signed in as {user.name ?? user.email}
+                  </span>
                   <Button
                     size="sm"
                     variant="ghost"
@@ -201,7 +212,11 @@ export default function Home() {
               <input
                 className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm outline-none transition focus:border-slate-400"
                 value={searchTerm}
-                onChange={(event) => setSearchTerm(event.target.value)}
+                onChange={(event) => {
+                  const value = event.target.value;
+                  setSearchTerm(value);
+                  void trackSearch(value, "client", role);
+                }}
                 placeholder="Search titles, summaries, or tags"
               />
             </label>

@@ -3,6 +3,7 @@ import http from "http";
 import crypto from "crypto";
 
 const DATA_PATH = new URL("./data.json", import.meta.url);
+const ANALYTICS_PATH = new URL("./analytics.json", import.meta.url);
 
 function nowIso() {
   return new Date().toISOString();
@@ -132,54 +133,6 @@ function loadData() {
   }
   const raw = readFileSync(DATA_PATH, "utf8");
   try {
-    // Serve uploaded files
-    if (req.method === "GET" && url.pathname.startsWith("/uploads/")) {
-      const filename = decodeURIComponent(url.pathname.replace("/uploads/", ""));
-      const filePath = new URL(`./uploads/${filename}`, import.meta.url);
-      if (!existsSync(filePath)) {
-        res.statusCode = 404;
-        res.end(JSON.stringify({ error: "not found" }));
-        return;
-      }
-      const data = readFileSync(filePath);
-      // rudimentary content-type
-      const ext = filename.split(".").pop();
-      const contentType = ext === "png" ? "image/png" : ext === "jpg" || ext === "jpeg" ? "image/jpeg" : "application/octet-stream";
-      res.setHeader("Content-Type", contentType);
-      res.end(data);
-      return;
-    }
-
-    // Upload endpoint (accepts JSON with base64 data)
-    if (req.method === "POST" && url.pathname === "/uploads") {
-      let body = "";
-      for await (const chunk of req) body += chunk;
-      const payload = JSON.parse(body || "{}");
-      const { filename, data } = payload;
-      if (!filename || !data) {
-        res.statusCode = 400;
-        res.end(JSON.stringify({ error: "filename and data required" }));
-        return;
-      }
-      // ensure uploads dir exists
-      const UPLOADS_DIR = new URL("./uploads", import.meta.url);
-      try {
-        if (!existsSync(UPLOADS_DIR)) {
-          // create dir
-          import("fs").then(({ mkdirSync }) => mkdirSync(UPLOADS_DIR, { recursive: true }));
-        }
-      } catch (e) {
-        // ignore
-      }
-      const unique = `${Date.now()}-${Math.random().toString(36).slice(2,8)}-${filename}`;
-      const filePath = new URL(`./uploads/${unique}`, import.meta.url);
-      const buffer = Buffer.from(data, "base64");
-      writeFileSync(filePath, buffer);
-      const urlOut = `/uploads/${encodeURIComponent(unique)}`;
-      res.setHeader("Content-Type", "application/json");
-      res.end(JSON.stringify({ url: urlOut }));
-      return;
-    }
     return JSON.parse(raw);
   } catch (e) {
     const seed = buildSeed();
@@ -192,7 +145,41 @@ function saveData(data) {
   writeFileSync(DATA_PATH, JSON.stringify(data, null, 2), "utf8");
 }
 
+function loadAnalytics() {
+  if (!existsSync(ANALYTICS_PATH)) {
+    const seed = {
+      events: [],
+      pageViews: {},
+      searchTerms: {},
+      actions: {},
+      lastUpdatedAt: null,
+    };
+    writeFileSync(ANALYTICS_PATH, JSON.stringify(seed, null, 2), "utf8");
+    return seed;
+  }
+
+  const raw = readFileSync(ANALYTICS_PATH, "utf8");
+  try {
+    return JSON.parse(raw);
+  } catch (e) {
+    const seed = {
+      events: [],
+      pageViews: {},
+      searchTerms: {},
+      actions: {},
+      lastUpdatedAt: null,
+    };
+    writeFileSync(ANALYTICS_PATH, JSON.stringify(seed, null, 2), "utf8");
+    return seed;
+  }
+}
+
+function saveAnalytics(data) {
+  writeFileSync(ANALYTICS_PATH, JSON.stringify(data, null, 2), "utf8");
+}
+
 let STORE = loadData();
+let ANALYTICS = loadAnalytics();
 const USERS_PATH = new URL("./users.json", import.meta.url);
 
 function loadUsers() {
@@ -298,6 +285,32 @@ function broadcast(event, payload) {
   }
 }
 
+function recordAnalytics(event) {
+  const now = nowIso();
+  ANALYTICS.events = [
+    { ...event, createdAt: now },
+    ...ANALYTICS.events,
+  ].slice(0, 200);
+  ANALYTICS.lastUpdatedAt = now;
+
+  if (event.type === "page_view") {
+    const key = event.page ?? "unknown";
+    ANALYTICS.pageViews[key] = (ANALYTICS.pageViews[key] ?? 0) + 1;
+  }
+
+  if (event.type === "search") {
+    const key = event.query?.trim().toLowerCase() || "empty";
+    ANALYTICS.searchTerms[key] = (ANALYTICS.searchTerms[key] ?? 0) + 1;
+  }
+
+  if (event.type === "action") {
+    const key = event.action ?? "unknown";
+    ANALYTICS.actions[key] = (ANALYTICS.actions[key] ?? 0) + 1;
+  }
+
+  saveAnalytics(ANALYTICS);
+}
+
 const server = http.createServer(async (req, res) => {
   const url = new URL(req.url, `http://localhost`);
 
@@ -342,9 +355,82 @@ const server = http.createServer(async (req, res) => {
       return;
     }
 
+    if (req.method === "GET" && url.pathname === "/analytics") {
+      res.setHeader("Content-Type", "application/json");
+      res.end(JSON.stringify(ANALYTICS));
+      return;
+    }
+
+    if (req.method === "POST" && url.pathname === "/analytics") {
+      let body = "";
+      for await (const chunk of req) body += chunk;
+      const payload = JSON.parse(body || "{}");
+      if (!payload.type) {
+        res.statusCode = 400;
+        res.end(JSON.stringify({ error: "event type required" }));
+        return;
+      }
+      recordAnalytics(payload);
+      res.setHeader("Content-Type", "application/json");
+      res.end(JSON.stringify({ ok: true }));
+      return;
+    }
+
     if (req.method === "GET" && url.pathname === "/articles") {
       res.setHeader("Content-Type", "application/json");
       res.end(JSON.stringify(STORE));
+      return;
+    }
+
+    if (req.method === "GET" && url.pathname.startsWith("/uploads/")) {
+      const filename = decodeURIComponent(url.pathname.replace("/uploads/", ""));
+      const filePath = new URL(`./uploads/${filename}`, import.meta.url);
+      if (!existsSync(filePath)) {
+        res.statusCode = 404;
+        res.end(JSON.stringify({ error: "not found" }));
+        return;
+      }
+
+      const data = readFileSync(filePath);
+      const ext = filename.split(".").pop();
+      const contentType =
+        ext === "png"
+          ? "image/png"
+          : ext === "jpg" || ext === "jpeg"
+            ? "image/jpeg"
+            : "application/octet-stream";
+      res.setHeader("Content-Type", contentType);
+      res.end(data);
+      return;
+    }
+
+    if (req.method === "POST" && url.pathname === "/uploads") {
+      let body = "";
+      for await (const chunk of req) body += chunk;
+      const payload = JSON.parse(body || "{}");
+      const { filename, data } = payload;
+      if (!filename || !data) {
+        res.statusCode = 400;
+        res.end(JSON.stringify({ error: "filename and data required" }));
+        return;
+      }
+
+      const uploadsDir = new URL("./uploads", import.meta.url);
+      if (!existsSync(uploadsDir)) {
+        import("fs").then(({ mkdirSync }) =>
+          mkdirSync(uploadsDir, { recursive: true }),
+        );
+      }
+
+      const unique = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}-${filename}`;
+      const filePath = new URL(`./uploads/${unique}`, import.meta.url);
+      const buffer = Buffer.from(data, "base64");
+      writeFileSync(filePath, buffer);
+
+      const urlOut = `/uploads/${encodeURIComponent(unique)}`;
+      recordAnalytics({ type: "action", action: "upload_image" });
+      res.setHeader("Content-Type", "application/json");
+      res.end(JSON.stringify({ url: urlOut }));
       return;
     }
 
@@ -392,6 +478,7 @@ const server = http.createServer(async (req, res) => {
       article.authorId = article.authorId ?? caller.id;
       STORE = [article, ...STORE];
       saveData(STORE);
+      recordAnalytics({ type: "action", action: "create_article", role: caller.role });
       broadcast("articles", { type: "created", article });
       res.setHeader("Content-Type", "application/json");
       res.end(JSON.stringify(article));
@@ -430,6 +517,7 @@ const server = http.createServer(async (req, res) => {
       const updated = transitionArticle(article, "pending");
       STORE[idx] = updated;
       saveData(STORE);
+      recordAnalytics({ type: "action", action: "submit_article", role: caller.role });
       broadcast("articles", { type: "submitted", article: updated });
       res.setHeader("Content-Type", "application/json");
       res.end(JSON.stringify(updated));
@@ -453,6 +541,7 @@ const server = http.createServer(async (req, res) => {
       const updated = transitionArticle(STORE[idx], "published");
       STORE[idx] = updated;
       saveData(STORE);
+      recordAnalytics({ type: "action", action: "approve_article", role: caller.role });
       broadcast("articles", { type: "approved", article: updated });
       res.setHeader("Content-Type", "application/json");
       res.end(JSON.stringify(updated));
@@ -476,6 +565,7 @@ const server = http.createServer(async (req, res) => {
       const updated = transitionArticle(STORE[idx], "draft");
       STORE[idx] = updated;
       saveData(STORE);
+      recordAnalytics({ type: "action", action: "reject_article", role: caller.role });
       broadcast("articles", { type: "rejected", article: updated });
       res.setHeader("Content-Type", "application/json");
       res.end(JSON.stringify(updated));
