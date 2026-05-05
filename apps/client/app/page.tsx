@@ -21,6 +21,8 @@ import {
   ROLE_LABELS,
   setStoredRole,
   subscribeToArticleEvents,
+  login,
+  logout,
   type UserRole,
 } from "@repo/api";
 import { type Article } from "@repo/db";
@@ -29,6 +31,11 @@ export default function Home() {
   const [publishedArticles, setPublishedArticles] = useState<Article[]>([]);
   const [searchTerm, setSearchTerm] = useState("");
   const [role, setRole] = useState<UserRole>("client");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [user, setUser] = useState<null | { id: string; email: string; role: UserRole; name?: string }>(null);
+  const [authError, setAuthError] = useState<string | null>(null);
+  const [authLoading, setAuthLoading] = useState(false);
   const [selectedArticleId, setSelectedArticleId] = useState<string | null>(
     null,
   );
@@ -115,6 +122,67 @@ export default function Home() {
                 </option>
               ))}
             </select>
+
+            <div className="ml-2 flex items-center gap-2">
+              {user ? (
+                <>
+                  <span className="text-sm text-slate-700">Signed in as {user.name ?? user.email}</span>
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    onClick={() => {
+                      logout();
+                      setUser(null);
+                      setRole("client");
+                    }}
+                  >
+                    Sign out
+                  </Button>
+                </>
+              ) : (
+                <form
+                  className="flex items-center gap-2"
+                  onSubmit={async (e) => {
+                    e.preventDefault();
+                    setAuthError(null);
+                    setAuthLoading(true);
+                    try {
+                      const res = await login(email, password);
+                      setUser(res.user);
+                      setRole(res.user.role as UserRole);
+                      setEmail("");
+                      setPassword("");
+                    } catch (err: any) {
+                      setAuthError(String(err?.message ?? err));
+                    } finally {
+                      setAuthLoading(false);
+                    }
+                  }}
+                >
+                  <input
+                    className="hidden"
+                    aria-hidden
+                    style={{ display: "none" }}
+                  />
+                  <input
+                    placeholder="email"
+                    className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm outline-none transition focus:border-slate-400"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                  />
+                  <input
+                    placeholder="password"
+                    type="password"
+                    className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm outline-none transition focus:border-slate-400"
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                  />
+                  <Button size="sm" type="submit" disabled={authLoading}>
+                    {authLoading ? "Signing in…" : "Sign in"}
+                  </Button>
+                </form>
+              )}
+            </div>
           </div>
 
           <div className="mt-5 max-w-2xl space-y-4">

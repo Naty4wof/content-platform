@@ -1,5 +1,6 @@
 import { readFileSync, writeFileSync, existsSync } from "fs";
 import http from "http";
+import crypto from "crypto";
 
 const DATA_PATH = new URL("./data.json", import.meta.url);
 
@@ -144,6 +145,94 @@ function saveData(data) {
 }
 
 let STORE = loadData();
+const USERS_PATH = new URL("./users.json", import.meta.url);
+
+function loadUsers() {
+  if (!existsSync(USERS_PATH)) {
+    writeFileSync(USERS_PATH, JSON.stringify([], null, 2), "utf8");
+    return [];
+  }
+  const raw = readFileSync(USERS_PATH, "utf8");
+  try {
+    return JSON.parse(raw);
+  } catch (e) {
+    writeFileSync(USERS_PATH, JSON.stringify([], null, 2), "utf8");
+    return [];
+  }
+}
+
+function saveUsers(users) {
+  writeFileSync(USERS_PATH, JSON.stringify(users, null, 2), "utf8");
+}
+
+let USERS = loadUsers();
+
+function base64url(input) {
+  return Buffer.from(JSON.stringify(input))
+    .toString("base64")
+    .replace(/=/g, "")
+    .replace(/\+/g, "-")
+    .replace(/\//g, "_");
+}
+
+function base64urlDecode(str) {
+  const s = str.replace(/-/g, "+").replace(/_/g, "/");
+  return JSON.parse(Buffer.from(s, "base64").toString("utf8"));
+}
+
+const TOKEN_SECRET = process.env.MOCK_BACKEND_JWT_SECRET || "dev-secret";
+
+function signToken(payload, expiresInSeconds = 60 * 60) {
+  const header = { alg: "HS256", typ: "JWT" };
+  const now = Math.floor(Date.now() / 1000);
+  const body = { ...payload, iat: now, exp: now + expiresInSeconds };
+  const headerB64 = base64url(header);
+  const payloadB64 = base64url(body);
+  const signature = crypto
+    .createHmac("sha256", TOKEN_SECRET)
+    .update(`${headerB64}.${payloadB64}`)
+    .digest("base64")
+    .replace(/=/g, "")
+    .replace(/\+/g, "-")
+    .replace(/\//g, "_");
+  return `${headerB64}.${payloadB64}.${signature}`;
+}
+
+function verifyToken(token) {
+  if (!token) return null;
+  const parts = token.split(".");
+  if (parts.length !== 3) return null;
+  const [headerB64, payloadB64, sig] = parts;
+  const expected = crypto
+    .createHmac("sha256", TOKEN_SECRET)
+    .update(`${headerB64}.${payloadB64}`)
+    .digest("base64")
+    .replace(/=/g, "")
+    .replace(/\+/g, "-")
+    .replace(/\//g, "_");
+  if (expected !== sig) return null;
+  try {
+    const payload = base64urlDecode(payloadB64);
+    const now = Math.floor(Date.now() / 1000);
+    if (payload.exp && payload.exp < now) return null;
+    return payload;
+  } catch (e) {
+    return null;
+  }
+}
+
+function getAuthUser(req) {
+  const auth = req.headers && req.headers.authorization;
+  if (!auth) return null;
+  const m = String(auth).match(/^Bearer\s+(.+)$/i);
+  if (!m) return null;
+  const token = m[1];
+  const payload = verifyToken(token);
+  if (!payload) return null;
+  const user = USERS.find((u) => u.id === payload.sub);
+  if (!user) return null;
+  return { id: user.id, email: user.email, role: user.role, name: user.name };
+}
 const CLIENTS = new Set();
 
 function sendEvent(res, event, payload) {
@@ -176,6 +265,35 @@ const server = http.createServer(async (req, res) => {
   }
 
   try {
+    // Auth: login
+    if (req.method === "POST" && url.pathname === "/auth/login") {
+      let body = "";
+      for await (const chunk of req) body += chunk;
+      const { email, password } = JSON.parse(body || "{}");
+      const found = USERS.find(
+        (u) => u.email === email && u.password === password,
+      );
+      if (!found) {
+        res.statusCode = 401;
+        res.end(JSON.stringify({ error: "invalid credentials" }));
+        return;
+      }
+      const token = signToken({ sub: found.id, role: found.role });
+      res.setHeader("Content-Type", "application/json");
+      res.end(
+        JSON.stringify({
+          token,
+          user: {
+            id: found.id,
+            email: found.email,
+            role: found.role,
+            name: found.name,
+          },
+        }),
+      );
+      return;
+    }
+
     if (req.method === "GET" && url.pathname === "/articles") {
       res.setHeader("Content-Type", "application/json");
       res.end(JSON.stringify(STORE));
@@ -215,8 +333,15 @@ const server = http.createServer(async (req, res) => {
     if (req.method === "POST" && url.pathname === "/articles") {
       let body = "";
       for await (const chunk of req) body += chunk;
+      const caller = getAuthUser(req);
+      if (!caller || (caller.role !== "admin" && caller.role !== "editor")) {
+        res.statusCode = 401;
+        res.end(JSON.stringify({ error: "unauthorized" }));
+        return;
+      }
       const payload = JSON.parse(body || "{}");
       const article = createDraftArticle(payload);
+      article.authorId = article.authorId ?? caller.id;
       STORE = [article, ...STORE];
       saveData(STORE);
       broadcast("articles", { type: "created", article });
@@ -231,13 +356,30 @@ const server = http.createServer(async (req, res) => {
 
     if (req.method === "POST" && submitMatch) {
       const id = submitMatch[1];
+      const caller = getAuthUser(req);
+      if (!caller) {
+        res.statusCode = 401;
+        res.end(JSON.stringify({ error: "unauthorized" }));
+        return;
+      }
       const idx = STORE.findIndex((a) => a.id === id);
       if (idx === -1) {
         res.statusCode = 404;
         res.end(JSON.stringify({ error: "not found" }));
         return;
       }
-      const updated = transitionArticle(STORE[idx], "pending");
+      // authors can submit their own drafts, editors/admins can submit any
+      const article = STORE[idx];
+      if (
+        caller.role !== "admin" &&
+        caller.role !== "editor" &&
+        caller.id !== article.authorId
+      ) {
+        res.statusCode = 403;
+        res.end(JSON.stringify({ error: "forbidden" }));
+        return;
+      }
+      const updated = transitionArticle(article, "pending");
       STORE[idx] = updated;
       saveData(STORE);
       broadcast("articles", { type: "submitted", article: updated });
@@ -248,6 +390,12 @@ const server = http.createServer(async (req, res) => {
 
     if (req.method === "POST" && approveMatch) {
       const id = approveMatch[1];
+      const caller = getAuthUser(req);
+      if (!caller || (caller.role !== "admin" && caller.role !== "editor")) {
+        res.statusCode = 401;
+        res.end(JSON.stringify({ error: "unauthorized" }));
+        return;
+      }
       const idx = STORE.findIndex((a) => a.id === id);
       if (idx === -1) {
         res.statusCode = 404;
@@ -265,6 +413,12 @@ const server = http.createServer(async (req, res) => {
 
     if (req.method === "POST" && rejectMatch) {
       const id = rejectMatch[1];
+      const caller = getAuthUser(req);
+      if (!caller || (caller.role !== "admin" && caller.role !== "editor")) {
+        res.statusCode = 401;
+        res.end(JSON.stringify({ error: "unauthorized" }));
+        return;
+      }
       const idx = STORE.findIndex((a) => a.id === id);
       if (idx === -1) {
         res.statusCode = 404;

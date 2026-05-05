@@ -4,11 +4,33 @@ export type { Article, ArticleStatus };
 
 const BASE = process.env.MOCK_BACKEND_URL ?? "http://localhost:4001";
 
-async function fetchJson(path: string, opts?: RequestInit) {
+export const AUTH_TOKEN_KEY = "content-platform-auth-token";
+
+export function setAuthToken(token: string | null) {
+  if (typeof window === "undefined") return;
+  if (token === null) window.localStorage.removeItem(AUTH_TOKEN_KEY);
+  else window.localStorage.setItem(AUTH_TOKEN_KEY, token);
+}
+
+export function getAuthToken(): string | null {
+  if (typeof window === "undefined") return null;
+  return window.localStorage.getItem(AUTH_TOKEN_KEY);
+}
+
+async function fetchJson(path: string, opts: RequestInit = {}) {
+  const headers: Record<string, string> = {
+    "Content-Type": "application/json",
+    ...(opts.headers as Record<string, string> | undefined),
+  };
+
+  const token = getAuthToken();
+  if (token) headers["Authorization"] = `Bearer ${token}`;
+
   const res = await fetch(`${BASE}${path}`, {
-    headers: { "Content-Type": "application/json" },
     ...opts,
+    headers,
   });
+
   if (!res.ok) {
     const text = await res.text();
     throw new Error(`Mock backend error: ${res.status} ${text}`);
@@ -190,6 +212,32 @@ export async function getArticleById(
   } catch (e) {
     return undefined;
   }
+}
+
+export async function login(
+  email: string,
+  password: string,
+): Promise<{
+  token: string;
+  user: { id: string; email: string; role: UserRole; name?: string };
+}> {
+  const res = await fetchJson(`/auth/login`, {
+    method: "POST",
+    body: JSON.stringify({ email, password }),
+  });
+  // persist token client-side
+  try {
+    if (typeof window !== "undefined") {
+      window.localStorage.setItem(AUTH_TOKEN_KEY, res.token);
+    }
+  } catch (e) {
+    // ignore
+  }
+  return res;
+}
+
+export function logout() {
+  setAuthToken(null);
 }
 
 export function subscribeToArticleEvents(
