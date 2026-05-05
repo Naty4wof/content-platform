@@ -240,6 +240,8 @@ export function logout() {
   setAuthToken(null);
 }
 
+export { uploadImage } from "./media";
+
 export function subscribeToArticleEvents(
   onChange: (event: ArticleEventPayload) => void,
 ): () => void {

@@ -132,6 +132,54 @@ function loadData() {
   }
   const raw = readFileSync(DATA_PATH, "utf8");
   try {
+    // Serve uploaded files
+    if (req.method === "GET" && url.pathname.startsWith("/uploads/")) {
+      const filename = decodeURIComponent(url.pathname.replace("/uploads/", ""));
+      const filePath = new URL(`./uploads/${filename}`, import.meta.url);
+      if (!existsSync(filePath)) {
+        res.statusCode = 404;
+        res.end(JSON.stringify({ error: "not found" }));
+        return;
+      }
+      const data = readFileSync(filePath);
+      // rudimentary content-type
+      const ext = filename.split(".").pop();
+      const contentType = ext === "png" ? "image/png" : ext === "jpg" || ext === "jpeg" ? "image/jpeg" : "application/octet-stream";
+      res.setHeader("Content-Type", contentType);
+      res.end(data);
+      return;
+    }
+
+    // Upload endpoint (accepts JSON with base64 data)
+    if (req.method === "POST" && url.pathname === "/uploads") {
+      let body = "";
+      for await (const chunk of req) body += chunk;
+      const payload = JSON.parse(body || "{}");
+      const { filename, data } = payload;
+      if (!filename || !data) {
+        res.statusCode = 400;
+        res.end(JSON.stringify({ error: "filename and data required" }));
+        return;
+      }
+      // ensure uploads dir exists
+      const UPLOADS_DIR = new URL("./uploads", import.meta.url);
+      try {
+        if (!existsSync(UPLOADS_DIR)) {
+          // create dir
+          import("fs").then(({ mkdirSync }) => mkdirSync(UPLOADS_DIR, { recursive: true }));
+        }
+      } catch (e) {
+        // ignore
+      }
+      const unique = `${Date.now()}-${Math.random().toString(36).slice(2,8)}-${filename}`;
+      const filePath = new URL(`./uploads/${unique}`, import.meta.url);
+      const buffer = Buffer.from(data, "base64");
+      writeFileSync(filePath, buffer);
+      const urlOut = `/uploads/${encodeURIComponent(unique)}`;
+      res.setHeader("Content-Type", "application/json");
+      res.end(JSON.stringify({ url: urlOut }));
+      return;
+    }
     return JSON.parse(raw);
   } catch (e) {
     const seed = buildSeed();

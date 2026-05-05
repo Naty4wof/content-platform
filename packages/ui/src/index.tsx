@@ -11,3 +11,4 @@ export {
 export { Badge } from "./badge";
 export { Code } from "./code";
 export { EmptyState } from "./empty-state";
+export { RichEditor } from "./rich-editor";
